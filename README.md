@@ -228,8 +228,9 @@ Authorization: Bearer <jwt_token>
 
 ### Users Table
 - `id` (Primary Key, Auto Increment)
-- `username` (Unique, 50 chars max)
+- `username` (Unique, no length restriction)
 - `email` (Unique)
+- `phoneNumber` (Unique, required)
 - `password` (Hashed with bcrypt)
 - `role` (Enum: user, admin)
 - `createdAt` (Timestamp)
@@ -252,6 +253,12 @@ Authorization: Bearer <jwt_token>
 
 ### File Size Limit
 - Maximum: 100 MB
+
+### User Registration Requirements
+- **Username**: Any string (no length or character restrictions)
+- **Email**: Valid email format
+- **Phone Number**: Any string (required field)
+- **Password**: Minimum 6 characters, maximum 100 characters
 
 ## Security Features
 
