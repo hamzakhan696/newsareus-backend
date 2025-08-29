@@ -9,10 +9,11 @@ export class UploadDataDto {
   id: number;
 
   @ApiProperty({
-    description: 'User ID who uploaded the file',
+    description: 'User ID who uploaded the file (optional)',
     example: 5,
+    required: false,
   })
-  userId: number;
+  userId?: number;
 
   @ApiProperty({
     description: 'Original filename',

@@ -24,6 +24,13 @@ export class RegisterDto {
   email: string;
 
   @ApiProperty({
+    description: 'Phone number for the account',
+    example: '+12345678901',
+  })
+  @IsString()
+  phoneNumber: string;
+
+  @ApiProperty({
     description: 'Password for the account',
     example: 'password123',
     minLength: 6,

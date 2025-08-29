@@ -20,6 +20,12 @@ export class UserResponseDto {
   email: string;
 
   @ApiProperty({
+    description: 'Phone number',
+    example: '+12345678901',
+  })
+  phoneNumber: string;
+
+  @ApiProperty({
     description: 'Account creation date',
     example: '2025-01-27T10:15:00.000Z',
   })
@@ -46,6 +52,7 @@ export class AuthResponseDto {
       id: { type: 'number', example: 1 },
       username: { type: 'string', example: 'john_doe' },
       email: { type: 'string', example: 'john@example.com' },
+      phoneNumber: { type: 'string', example: '+12345678901' },
       createdAt: { type: 'string', example: '2025-01-27T10:15:00.000Z' },
       token: { type: 'string', example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...' },
     },

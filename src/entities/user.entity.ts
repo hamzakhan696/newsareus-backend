@@ -31,6 +31,13 @@ export class User {
   email: string;
 
   @ApiProperty({
+    description: 'Phone number',
+    example: '+12345678901',
+  })
+  @Column({ unique: true, nullable: true, length: 20 })
+  phoneNumber: string;
+
+  @ApiProperty({
     description: 'Hashed password',
     example: '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj4J/HS.iK8O',
   })

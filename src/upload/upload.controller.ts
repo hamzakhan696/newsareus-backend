@@ -6,22 +6,18 @@ import {
   Param,
   UseInterceptors,
   UploadedFile,
-  UseGuards,
-  Request,
   ParseIntPipe,
   BadRequestException,
+  Query,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiConsumes, ApiBody } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { ApiTags, ApiOperation, ApiResponse, ApiConsumes, ApiBody, ApiQuery } from '@nestjs/swagger';
 import { UploadService } from './upload.service';
 import { UploadResponseDto, UploadsListResponseDto, DeleteResponseDto } from './dto/upload-response.dto';
 
 @ApiTags('upload')
-@ApiBearerAuth('JWT-auth')
 @Controller('upload')
-// @UseGuards(JwtAuthGuard)
 export class UploadController {
   constructor(private readonly uploadService: UploadService) {}
 
@@ -33,6 +29,7 @@ export class UploadController {
   )
   @ApiOperation({ summary: 'Upload a file' })
   @ApiConsumes('multipart/form-data')
+  @ApiQuery({ name: 'userId', required: false, type: Number, description: 'User ID (optional)' })
   @ApiBody({
     schema: {
       type: 'object',
@@ -54,36 +51,27 @@ export class UploadController {
     status: 400,
     description: 'Bad request - invalid file type or size',
   })
-  @ApiResponse({
-    status: 401,
-    description: 'Unauthorized - invalid or missing JWT token',
-  })
-  async uploadFile(@UploadedFile() file: Express.Multer.File, @Request() req) {
-    if (!req.user || !req.user.id) {
-      throw new BadRequestException('Missing authenticated user context');
-    }
+  async uploadFile(
+    @UploadedFile() file: Express.Multer.File,
+    @Query('userId') userId?: string,
+  ) {
     if (!file) {
       throw new BadRequestException('No file uploaded');
     }
-    return this.uploadService.uploadFile(file, req.user.id);
+    
+    const userIdNumber = userId ? parseInt(userId, 10) : undefined;
+    return this.uploadService.uploadFile(file, userIdNumber);
   }
 
   @Get('my-uploads')
-  @ApiOperation({ summary: 'Get user uploads' })
+  @ApiOperation({ summary: 'Get all uploads' })
   @ApiResponse({
     status: 200,
-    description: 'User uploads retrieved successfully',
+    description: 'All uploads retrieved successfully',
     type: UploadsListResponseDto,
   })
-  @ApiResponse({
-    status: 401,
-    description: 'Unauthorized - invalid or missing JWT token',
-  })
-  async getUserUploads(@Request() req) {
-    if (!req.user || !req.user.id) {
-      throw new BadRequestException('Missing authenticated user context');
-    }
-    return this.uploadService.getUserUploads(req.user.id);
+  async getAllUploads() {
+    return this.uploadService.getAllUploads();
   }
 
   @Delete(':id')
@@ -95,16 +83,9 @@ export class UploadController {
   })
   @ApiResponse({
     status: 400,
-    description: 'Bad request - upload not found or access denied',
+    description: 'Bad request - upload not found',
   })
-  @ApiResponse({
-    status: 401,
-    description: 'Unauthorized - invalid or missing JWT token',
-  })
-  async deleteUpload(@Param('id', ParseIntPipe) id: number, @Request() req) {
-    if (!req.user || !req.user.id) {
-      throw new BadRequestException('Missing authenticated user context');
-    }
-    return this.uploadService.deleteUpload(id, req.user.id);
+  async deleteUpload(@Param('id', ParseIntPipe) id: number) {
+    return this.uploadService.deleteUpload(id);
   }
 }

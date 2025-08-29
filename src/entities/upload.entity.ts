@@ -19,9 +19,10 @@ export class Upload {
   @ApiProperty({
     description: 'User ID who uploaded the file',
     example: 5,
+    required: false,
   })
-  @Column()
-  userId: number;
+  @Column({ nullable: true })
+  userId?: number;
 
   @ApiProperty({
     description: 'Original filename',

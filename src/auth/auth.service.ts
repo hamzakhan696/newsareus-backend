@@ -16,15 +16,15 @@ export class AuthService {
   ) {}
 
   async register(registerDto: RegisterDto) {
-    const { username, email, password } = registerDto;
+    const { username, email, phoneNumber, password } = registerDto;
 
     // Check if user already exists
     const existingUser = await this.userRepository.findOne({
-      where: [{ email }, { username }],
+      where: [{ email }, { username }, { phoneNumber }],
     });
 
     if (existingUser) {
-      throw new ConflictException('User with this email or username already exists');
+      throw new ConflictException('User with this email, username, or phone number already exists');
     }
 
     // Hash password
@@ -35,6 +35,7 @@ export class AuthService {
     const user = this.userRepository.create({
       username,
       email,
+      phoneNumber,
       password: hashedPassword,
     });
 
@@ -51,6 +52,7 @@ export class AuthService {
         id: savedUser.id,
         username: savedUser.username,
         email: savedUser.email,
+        phoneNumber: savedUser.phoneNumber,
         createdAt: savedUser.createdAt,
         token,
       },
@@ -72,7 +74,7 @@ export class AuthService {
     // Verify password
     const isPasswordValid = await bcrypt.compare(password, user.password);
 
-    if (!isPasswordValid) {
+    if (!user || !isPasswordValid) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
@@ -87,6 +89,7 @@ export class AuthService {
         id: user.id,
         username: user.username,
         email: user.email,
+        phoneNumber: user.phoneNumber,
         createdAt: user.createdAt,
         token,
       },

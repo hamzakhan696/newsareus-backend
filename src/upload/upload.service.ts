@@ -37,7 +37,7 @@ export class UploadService {
     return this.allowedImageTypes.includes(mimetype) ? FileType.IMAGE : FileType.VIDEO;
   }
 
-  async uploadFile(file: Express.Multer.File, userId: number) {
+  async uploadFile(file: Express.Multer.File, userId?: number) {
     // Validate file
     this.validateFile(file);
 
@@ -47,14 +47,14 @@ export class UploadService {
     // Determine file type
     const fileType = this.getFileType(file.mimetype);
 
-    // Save to database
+    // Save to database (with optional userId)
     const upload = this.uploadRepository.create({
-      userId,
       filename: file.originalname,
       fileUrl: cloudinaryResult.url,
       fileType,
       fileSize: file.size,
       cloudinaryPublicId: cloudinaryResult.publicId,
+      ...(userId && { userId }),
     });
 
     const savedUpload = await this.uploadRepository.save(upload);
@@ -73,26 +73,25 @@ export class UploadService {
     };
   }
 
-  async getUserUploads(userId: number) {
+  async getAllUploads() {
     const uploads = await this.uploadRepository.find({
-      where: { userId },
       order: { createdAt: 'DESC' },
     });
 
     return {
       success: true,
-      message: 'User uploads retrieved successfully',
+      message: 'All uploads retrieved successfully',
       data: uploads,
     };
   }
 
-  async deleteUpload(uploadId: number, userId: number) {
+  async deleteUpload(uploadId: number) {
     const upload = await this.uploadRepository.findOne({
-      where: { id: uploadId, userId },
+      where: { id: uploadId },
     });
 
     if (!upload) {
-      throw new BadRequestException('Upload not found or access denied');
+      throw new BadRequestException('Upload not found');
     }
 
     // Delete from Cloudinary
