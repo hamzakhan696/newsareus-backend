@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn, OneToMany } from 'typeorm';
 import { ApiProperty } from '@nestjs/swagger';
 import { User } from './user.entity';
 
@@ -66,6 +66,20 @@ export class Upload {
   cloudinaryPublicId: string;
 
   @ApiProperty({
+    description: 'Watermarked preview URL (for companies to see)',
+    example: 'https://res.cloudinary.com/demo/image/upload/v12345/watermarked_preview.png',
+  })
+  @Column({ nullable: true })
+  watermarkedPreviewUrl: string;
+
+  @ApiProperty({
+    description: 'Whether this upload is available for bidding',
+    example: true,
+  })
+  @Column({ default: true })
+  isAvailableForBidding: boolean;
+
+  @ApiProperty({
     description: 'Upload creation date',
     example: '2025-01-27T10:15:00.000Z',
   })
@@ -75,4 +89,7 @@ export class Upload {
   @ManyToOne(() => User, (user) => user.uploads, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'userId' })
   user: User;
+
+  @OneToMany('Bid', 'upload')
+  bids: any[];
 }

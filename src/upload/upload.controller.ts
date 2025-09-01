@@ -64,14 +64,19 @@ export class UploadController {
   }
 
   @Get('my-uploads')
-  @ApiOperation({ summary: 'Get all uploads' })
+  @ApiOperation({ summary: 'Get uploads by user ID' })
+  @ApiQuery({ name: 'userId', required: true, type: Number, description: 'User ID to filter uploads' })
   @ApiResponse({
     status: 200,
-    description: 'All uploads retrieved successfully',
+    description: 'User uploads retrieved successfully',
     type: UploadsListResponseDto,
   })
-  async getAllUploads() {
-    return this.uploadService.getAllUploads();
+  @ApiResponse({
+    status: 400,
+    description: 'Bad request - userId is required',
+  })
+  async getUploadsByUserId(@Query('userId', ParseIntPipe) userId: number) {
+    return this.uploadService.getUploadsByUserId(userId);
   }
 
   @Delete(':id')

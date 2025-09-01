@@ -5,8 +5,12 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { UploadModule } from './upload/upload.module';
+import { CompaniesModule } from './companies/companies.module';
+import { BiddingModule } from './bidding/bidding.module';
 import { User } from './entities/user.entity';
 import { Upload } from './entities/upload.entity';
+import { Company } from './entities/company.entity';
+import { Bid } from './entities/bid.entity';
 
 @Module({
   imports: [
@@ -21,8 +25,8 @@ import { Upload } from './entities/upload.entity';
         port: configService.get('DB_PORT') || 3306,
         username: configService.get('DB_USERNAME') || 'root',
         password: configService.get('DB_PASSWORD') || '',
-        database: configService.get('DB_DATABASE') || 'file_upload_db',
-        entities: [User, Upload],
+        database: configService.get('DB_DATABASE') || 'app-backend',
+        entities: [User, Upload, Company, Bid],
         synchronize: true, // Set to false in production
         logging: true,
       }),
@@ -30,6 +34,8 @@ import { Upload } from './entities/upload.entity';
     }),
     AuthModule,
     UploadModule,
+    CompaniesModule,
+    BiddingModule,
   ],
   controllers: [AppController],
   providers: [AppService],

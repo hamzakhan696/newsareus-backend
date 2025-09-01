@@ -2,6 +2,7 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CloudinaryService } from './cloudinary.service';
+import { WatermarkService } from './watermark.service';
 import { Upload, FileType } from '../entities/upload.entity';
 
 @Injectable()
@@ -14,6 +15,7 @@ export class UploadService {
     @InjectRepository(Upload)
     private uploadRepository: Repository<Upload>,
     private cloudinaryService: CloudinaryService,
+    private watermarkService: WatermarkService,
   ) {}
 
   private validateFile(file: Express.Multer.File): void {
@@ -47,13 +49,22 @@ export class UploadService {
     // Determine file type
     const fileType = this.getFileType(file.mimetype);
 
-    // Save to database (with optional userId)
+    // Create watermarked preview
+    const watermarkedPreviewUrl = await this.watermarkService.createWatermarkedPreview(
+      cloudinaryResult.url,
+      fileType,
+      'PREVIEW ONLY'
+    );
+
+    // Save to database (with optional userId and watermarked preview)
     const upload = this.uploadRepository.create({
       filename: file.originalname,
       fileUrl: cloudinaryResult.url,
       fileType,
       fileSize: file.size,
       cloudinaryPublicId: cloudinaryResult.publicId,
+      watermarkedPreviewUrl,
+      isAvailableForBidding: true,
       ...(userId && { userId }),
     });
 
@@ -81,6 +92,19 @@ export class UploadService {
     return {
       success: true,
       message: 'All uploads retrieved successfully',
+      data: uploads,
+    };
+  }
+
+  async getUploadsByUserId(userId: number) {
+    const uploads = await this.uploadRepository.find({
+      where: { userId },
+      order: { createdAt: 'DESC' },
+    });
+
+    return {
+      success: true,
+      message: `Uploads for user ${userId} retrieved successfully`,
       data: uploads,
     };
   }
