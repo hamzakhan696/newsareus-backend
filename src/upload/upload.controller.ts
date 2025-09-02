@@ -1,16 +1,4 @@
-import {
-  Controller,
-  Post,
-  Get,
-  Delete,
-  Param,
-  UseInterceptors,
-  UploadedFile,
-  ParseIntPipe,
-  BadRequestException,
-  Query,
-  Body,
-} from '@nestjs/common';
+import { Controller, Get, Post, Delete, Param, Query, Body, UseInterceptors, UploadedFile, ParseIntPipe, BadRequestException } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { ApiTags, ApiOperation, ApiResponse, ApiConsumes, ApiBody, ApiQuery } from '@nestjs/swagger';
@@ -98,12 +86,12 @@ export class UploadController {
   @ApiOperation({ summary: 'Delete an upload' })
   @ApiResponse({
     status: 200,
-    description: 'File deleted successfully',
+    description: 'Upload deleted successfully',
     type: DeleteResponseDto,
   })
   @ApiResponse({
-    status: 400,
-    description: 'Bad request - upload not found',
+    status: 404,
+    description: 'Upload not found',
   })
   async deleteUpload(@Param('id', ParseIntPipe) id: number) {
     return this.uploadService.deleteUpload(id);

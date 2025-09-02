@@ -1,67 +1,61 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { BidStatus } from '../../entities/bid.entity';
 
-export class BidResponseDto {
-  @ApiProperty({
-    description: 'Bid ID',
-    example: 1,
-  })
+export class CompanyInfoDto {
+  @ApiProperty({ example: 1 })
   id: number;
 
-  @ApiProperty({
-    description: 'Upload ID',
-    example: 1,
-  })
-  uploadId: number;
+  @ApiProperty({ example: 'News Corp' })
+  name: string;
 
-  @ApiProperty({
-    description: 'Company ID',
-    example: 1,
-  })
-  companyId: number;
+  @ApiProperty({ example: 'news@corp.com' })
+  email: string;
+}
 
-  @ApiProperty({
-    description: 'Company name',
-    example: 'ABC News Network',
-  })
-  companyName: string;
+export class UploadInfoDto {
+  @ApiProperty({ example: 1 })
+  id: number;
 
-  @ApiProperty({
-    description: 'Bid amount',
-    example: 150.00,
-  })
-  bidAmount: number;
+  @ApiProperty({ example: 'Breaking News Video' })
+  title: string;
 
-  @ApiProperty({
-    description: 'Bid message',
-    example: 'We are interested in using this content.',
-  })
+  @ApiProperty({ example: 'Important news coverage' })
+  description: string;
+
+  @ApiProperty({ example: 'video.mp4' })
+  filename: string;
+
+  @ApiProperty({ example: 'video' })
+  fileType: string;
+}
+
+export class BidResponseDto {
+  @ApiProperty({ example: 1 })
+  id: number;
+
+  @ApiProperty({ example: 150.00 })
+  amount: number;
+
+  @ApiProperty({ example: 'We are interested in using this content.' })
   message: string;
 
-  @ApiProperty({
-    description: 'Bid status',
-    enum: BidStatus,
-    example: BidStatus.PENDING,
-  })
+  @ApiProperty({ example: 'news_coverage' })
+  bidType: string;
+
+  @ApiProperty({ enum: BidStatus, example: BidStatus.PENDING })
   status: BidStatus;
 
-  @ApiProperty({
-    description: 'Bid expiration date',
-    example: '2025-02-01T10:15:00.000Z',
-  })
-  expiresAt: Date;
+  @ApiProperty({ type: CompanyInfoDto })
+  company: CompanyInfoDto;
 
-  @ApiProperty({
-    description: 'Payment status',
-    example: false,
-  })
-  isPaid: boolean;
+  @ApiProperty({ type: UploadInfoDto })
+  upload: UploadInfoDto;
 
-  @ApiProperty({
-    description: 'Bid creation date',
-    example: '2025-01-27T10:15:00.000Z',
-  })
+  @ApiProperty({ example: '2025-01-27T10:15:00.000Z' })
   createdAt: Date;
+
+  @ApiProperty({ example: '2025-01-27T10:15:00.000Z' })
+  updatedAt: Date;
 }
 
 export class BidsListResponseDto {

@@ -1,13 +1,14 @@
-import { Injectable, ConflictException, UnauthorizedException, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { JwtService } from '@nestjs/jwt';
-import * as bcrypt from 'bcryptjs';
 import { Company } from '../entities/company.entity';
 import { Upload, FileType } from '../entities/upload.entity';
+import { Bid } from '../entities/bid.entity';
+import { JwtService } from '@nestjs/jwt';
 import { CompanyRegisterDto } from './dto/company-register.dto';
 import { CompanyLoginDto } from './dto/company-login.dto';
 import { CompanyAuthResponseDto } from './dto/company-auth-response.dto';
+import * as bcrypt from 'bcryptjs';
 
 @Injectable()
 export class CompaniesService {
@@ -16,26 +17,25 @@ export class CompaniesService {
     private companyRepository: Repository<Company>,
     @InjectRepository(Upload)
     private uploadRepository: Repository<Upload>,
+    @InjectRepository(Bid)
+    private bidRepository: Repository<Bid>,
     private jwtService: JwtService,
   ) {}
 
-  async register(registerDto: CompanyRegisterDto): Promise<CompanyAuthResponseDto> {
-    const {
-      companyName,
-      companyEmail,
-      password,
-      confirmPassword,
-      phoneNumber,
-      companyAddress,
-      companyWebsite,
-      businessLicense,
-      companyType,
-    } = registerDto;
-
-    // Validate password confirmation
-    if (password !== confirmPassword) {
-      throw new BadRequestException('Passwords do not match');
+  async findOne(id: number): Promise<Company> {
+    const company = await this.companyRepository.findOne({ where: { id } });
+    if (!company) {
+      throw new NotFoundException(`Company with ID ${id} not found`);
     }
+    return company;
+  }
+
+  async findByEmail(email: string): Promise<Company | null> {
+    return this.companyRepository.findOne({ where: { companyEmail: email } });
+  }
+
+  async register(registerDto: CompanyRegisterDto): Promise<CompanyAuthResponseDto> {
+    const { companyName, companyEmail, password, phoneNumber, businessLicense, companyAddress, companyWebsite, companyType } = registerDto;
 
     // Check if company already exists
     const existingCompany = await this.companyRepository.findOne({
@@ -43,23 +43,12 @@ export class CompaniesService {
         { companyEmail },
         { companyName },
         { phoneNumber },
-        { businessLicense },
+        { businessLicense }
       ],
     });
 
     if (existingCompany) {
-      if (existingCompany.companyEmail === companyEmail) {
-        throw new ConflictException('Company with this email already exists');
-      }
-      if (existingCompany.companyName === companyName) {
-        throw new ConflictException('Company with this name already exists');
-      }
-      if (existingCompany.phoneNumber === phoneNumber) {
-        throw new ConflictException('Company with this phone number already exists');
-      }
-      if (existingCompany.businessLicense === businessLicense) {
-        throw new ConflictException('Company with this business license already exists');
-      }
+      throw new ConflictException('Company with this email, name, phone number, or business license already exists');
     }
 
     // Hash password
@@ -81,21 +70,25 @@ export class CompaniesService {
     const savedCompany = await this.companyRepository.save(company);
 
     // Generate JWT token
-    const payload = {
-      sub: savedCompany.id,
-      companyEmail: savedCompany.companyEmail,
-      companyName: savedCompany.companyName,
-      type: 'company',
-    };
-
+    const payload = { companyName: company.companyName, sub: company.id, type: 'company' };
     const accessToken = this.jwtService.sign(payload);
 
-    // Return response without password
-    const { password: _, ...companyWithoutPassword } = savedCompany;
-
+    // Return response in the expected format
     return {
       accessToken,
-      company: companyWithoutPassword,
+      company: {
+        id: savedCompany.id,
+        companyName: savedCompany.companyName,
+        companyEmail: savedCompany.companyEmail,
+        phoneNumber: savedCompany.phoneNumber,
+        companyAddress: savedCompany.companyAddress,
+        companyWebsite: savedCompany.companyWebsite,
+        businessLicense: savedCompany.businessLicense,
+        companyType: savedCompany.companyType,
+        isVerified: savedCompany.isVerified,
+        isActive: savedCompany.isActive,
+        createdAt: savedCompany.createdAt,
+      },
     };
   }
 
@@ -111,280 +104,252 @@ export class CompaniesService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    // Check if company is active
-    if (!company.isActive) {
-      throw new UnauthorizedException('Company account is deactivated');
-    }
-
     // Verify password
     const isPasswordValid = await bcrypt.compare(password, company.password);
+
     if (!isPasswordValid) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    // Generate JWT token
-    const payload = {
-      sub: company.id,
-      companyEmail: company.companyEmail,
-      companyName: company.companyName,
-      type: 'company',
-    };
-
-    const accessToken = this.jwtService.sign(payload);
-
-    // Return response without password
-    const { password: _, ...companyWithoutPassword } = company;
-
-    return {
-      accessToken,
-      company: companyWithoutPassword,
-    };
-  }
-
-  async findById(id: number): Promise<Company> {
-    const company = await this.companyRepository.findOne({
-      where: { id },
-    });
-
-    if (!company) {
-      throw new UnauthorizedException('Company not found');
+    // Check if company is active
+    if (!company.isActive) {
+      throw new UnauthorizedException('Account is deactivated');
     }
 
-    return company;
-  }
+    // Generate JWT token
+    const payload = { companyName: company.companyName, sub: company.id, type: 'company' };
+    const accessToken = this.jwtService.sign(payload);
 
-  async findAll(): Promise<Company[]> {
-    return this.companyRepository.find({
-      select: [
-        'id',
-        'companyName',
-        'companyEmail',
-        'phoneNumber',
-        'companyAddress',
-        'companyWebsite',
-        'businessLicense',
-        'companyType',
-        'isVerified',
-        'isActive',
-        'createdAt',
-        'updatedAt',
-      ],
-    });
-  }
-
-  async updateVerificationStatus(id: number, isVerified: boolean): Promise<Company> {
-    const company = await this.findById(id);
-    company.isVerified = isVerified;
-    return this.companyRepository.save(company);
-  }
-
-  async updateActiveStatus(id: number, isActive: boolean): Promise<Company> {
-    const company = await this.findById(id);
-    company.isActive = isActive;
-    return this.companyRepository.save(company);
+    // Return response in the expected format
+    return {
+      accessToken,
+      company: {
+        id: company.id,
+        companyName: company.companyName,
+        companyEmail: company.companyEmail,
+        phoneNumber: company.phoneNumber,
+        companyAddress: company.companyAddress,
+        companyWebsite: company.companyWebsite,
+        businessLicense: company.businessLicense,
+        companyType: company.companyType,
+        isVerified: company.isVerified,
+        isActive: company.isActive,
+        createdAt: company.createdAt,
+      },
+    };
   }
 
   /**
-   * Get all videos available for bidding with watermarked previews
-   * @returns Array of videos with watermarked previews
+   * Get preview videos excluding those already bid on by the company
    */
-  async getPreviewVideos() {
-    const videos = await this.uploadRepository.find({
-      where: { 
+  async getPreviewVideos(companyId: number) {
+    // Get all available videos
+    const availableVideos = await this.uploadRepository.find({
+      where: {
+        fileType: FileType.VIDEO,
         isAvailableForBidding: true,
-        fileType: FileType.VIDEO
       },
-      select: [
-        'id',
-        'title',
-        'description',
-        'filename',
-        'fileType',
-        'watermarkedPreviewUrl',
-        'createdAt',
-        'userId'
-      ],
+      select: ['id', 'title', 'description', 'filename', 'fileType', 'watermarkedPreviewUrl', 'createdAt', 'userId'],
       order: { createdAt: 'DESC' },
     });
 
-    return {
-      success: true,
-      message: 'Preview videos retrieved successfully',
-      data: videos.map(video => ({
-        id: video.id,
-        title: video.title,
-        description: video.description,
-        filename: video.filename,
-        fileType: video.fileType,
-        previewUrl: video.watermarkedPreviewUrl, // Watermarked preview URL
-        createdAt: video.createdAt,
-        userId: video.userId
-      }))
-    };
+    // Get videos that this company has already bid on
+    const companyBids = await this.bidRepository.find({
+      where: { companyId },
+      select: ['uploadId'],
+    });
+
+    const bidUploadIds = companyBids.map(bid => bid.uploadId);
+
+    // Filter out videos that company has already bid on
+    const filteredVideos = availableVideos.filter(video => !bidUploadIds.includes(video.id));
+
+    return filteredVideos.map(video => ({
+      id: video.id,
+      title: video.title,
+      description: video.description,
+      filename: video.filename,
+      fileType: video.fileType,
+      previewUrl: video.watermarkedPreviewUrl,
+      createdAt: video.createdAt,
+      userId: video.userId,
+    }));
   }
 
   /**
-   * Get specific video preview with watermark
-   * @param id - Video ID
-   * @returns Video with watermarked preview
+   * Get preview video by ID (excluding if already bid on)
    */
-  async getPreviewVideo(id: number) {
+  async getPreviewVideo(id: number, companyId: number) {
     const video = await this.uploadRepository.findOne({
-      where: { 
+      where: {
         id,
+        fileType: FileType.VIDEO,
         isAvailableForBidding: true,
-        fileType: FileType.VIDEO
       },
-      select: [
-        'id',
-        'title',
-        'description',
-        'filename',
-        'fileType',
-        'watermarkedPreviewUrl',
-        'createdAt',
-        'userId'
-      ],
+      select: ['id', 'title', 'description', 'filename', 'fileType', 'watermarkedPreviewUrl', 'createdAt', 'userId'],
     });
 
     if (!video) {
       throw new NotFoundException('Video not found or not available for bidding');
     }
 
+    // Check if company has already bid on this video
+    const existingBid = await this.bidRepository.findOne({
+      where: { companyId, uploadId: id },
+    });
+
+    if (existingBid) {
+      throw new NotFoundException('You have already bid on this video');
+    }
+
     return {
-      success: true,
-      message: 'Video preview retrieved successfully',
-      data: {
-        id: video.id,
-        title: video.title,
-        description: video.description,
-        filename: video.filename,
-        fileType: video.fileType,
-        previewUrl: video.watermarkedPreviewUrl, // Watermarked preview URL
-        createdAt: video.createdAt,
-        userId: video.userId
-      }
+      id: video.id,
+      title: video.title,
+      description: video.description,
+      filename: video.filename,
+      fileType: video.fileType,
+      previewUrl: video.watermarkedPreviewUrl,
+      createdAt: video.createdAt,
+      userId: video.userId,
     };
   }
 
   /**
-   * Get all images available for bidding with watermarked previews
-   * @returns Array of images with watermarked previews
+   * Get preview images excluding those already bid on by the company
    */
-  async getPreviewImages() {
-    const images = await this.uploadRepository.find({
-      where: { 
+  async getPreviewImages(companyId: number) {
+    // Get all available images
+    const availableImages = await this.uploadRepository.find({
+      where: {
+        fileType: FileType.IMAGE,
         isAvailableForBidding: true,
-        fileType: FileType.IMAGE
       },
-      select: [
-        'id',
-        'title',
-        'description',
-        'filename',
-        'fileType',
-        'watermarkedPreviewUrl',
-        'createdAt',
-        'userId'
-      ],
+      select: ['id', 'title', 'description', 'filename', 'fileType', 'watermarkedPreviewUrl', 'createdAt', 'userId'],
       order: { createdAt: 'DESC' },
     });
 
-    return {
-      success: true,
-      message: 'Preview images retrieved successfully',
-      data: images.map(image => ({
-        id: image.id,
-        title: image.title,
-        description: image.description,
-        filename: image.filename,
-        fileType: image.fileType,
-        previewUrl: image.watermarkedPreviewUrl, // Watermarked preview URL
-        createdAt: image.createdAt,
-        userId: image.userId
-      }))
-    };
+    // Get images that this company has already bid on
+    const companyBids = await this.bidRepository.find({
+      where: { companyId },
+      select: ['uploadId'],
+    });
+
+    const bidUploadIds = companyBids.map(bid => bid.uploadId);
+
+    // Filter out images that company has already bid on
+    const filteredImages = availableImages.filter(image => !bidUploadIds.includes(image.id));
+
+    return filteredImages.map(image => ({
+      id: image.id,
+      title: image.title,
+      description: image.description,
+      filename: image.filename,
+      fileType: image.fileType,
+      previewUrl: image.watermarkedPreviewUrl,
+      createdAt: image.createdAt,
+      userId: image.userId,
+    }));
   }
 
   /**
-   * Get specific image preview with watermark
-   * @param id - Image ID
-   * @returns Image with watermarked preview
+   * Get preview image by ID (excluding if already bid on)
    */
-  async getPreviewImage(id: number) {
+  async getPreviewImage(id: number, companyId: number) {
     const image = await this.uploadRepository.findOne({
-      where: { 
+      where: {
         id,
+        fileType: FileType.IMAGE,
         isAvailableForBidding: true,
-        fileType: FileType.IMAGE
       },
-      select: [
-        'id',
-        'title',
-        'description',
-        'filename',
-        'fileType',
-        'watermarkedPreviewUrl',
-        'createdAt',
-        'userId'
-      ],
+      select: ['id', 'title', 'description', 'filename', 'fileType', 'watermarkedPreviewUrl', 'createdAt', 'userId'],
     });
 
     if (!image) {
       throw new NotFoundException('Image not found or not available for bidding');
     }
 
+    // Check if company has already bid on this image
+    const existingBid = await this.bidRepository.findOne({
+      where: { companyId, uploadId: id },
+    });
+
+    if (existingBid) {
+      throw new NotFoundException('You have already bid on this image');
+    }
+
     return {
-      success: true,
-      message: 'Image preview retrieved successfully',
-      data: {
-        id: image.id,
-        title: image.title,
-        description: image.description,
-        filename: image.filename,
-        fileType: image.fileType,
-        previewUrl: image.watermarkedPreviewUrl, // Watermarked preview URL
-        createdAt: image.createdAt,
-        userId: image.userId
-      }
+      id: image.id,
+      title: image.title,
+      description: image.description,
+      filename: image.filename,
+      fileType: image.fileType,
+      previewUrl: image.watermarkedPreviewUrl,
+      createdAt: image.createdAt,
+      userId: image.userId,
     };
   }
 
   /**
-   * Get all media (images and videos) available for bidding with watermarked previews
-   * @returns Array of all media with watermarked previews
+   * Get all preview media (images and videos) excluding those already bid on
    */
-  async getPreviewMedia() {
-    const allMedia = await this.uploadRepository.find({
-      where: { 
+  async getPreviewMedia(companyId: number) {
+    // Get all available media
+    const availableMedia = await this.uploadRepository.find({
+      where: {
         isAvailableForBidding: true,
       },
-      select: [
-        'id',
-        'title',
-        'description',
-        'filename',
-        'fileType',
-        'watermarkedPreviewUrl',
-        'createdAt',
-        'userId'
-      ],
+      select: ['id', 'title', 'description', 'filename', 'fileType', 'watermarkedPreviewUrl', 'createdAt', 'userId'],
       order: { createdAt: 'DESC' },
     });
 
-    return {
-      success: true,
-      message: 'All preview media retrieved successfully',
-      data: allMedia.map(media => ({
-        id: media.id,
-        title: media.title,
-        description: media.description,
-        filename: media.filename,
-        fileType: media.fileType,
-        previewUrl: media.watermarkedPreviewUrl, // Watermarked preview URL
-        createdAt: media.createdAt,
-        userId: media.userId
-      }))
-    };
+    // Get media that this company has already bid on
+    const companyBids = await this.bidRepository.find({
+      where: { companyId },
+      select: ['uploadId'],
+    });
+
+    const bidUploadIds = companyBids.map(bid => bid.uploadId);
+
+    // Filter out media that company has already bid on
+    const filteredMedia = availableMedia.filter(media => !bidUploadIds.includes(media.id));
+
+    return filteredMedia.map(media => ({
+      id: media.id,
+      title: media.title,
+      description: media.description,
+      filename: media.filename,
+      fileType: media.fileType,
+      previewUrl: media.watermarkedPreviewUrl,
+      createdAt: media.createdAt,
+      userId: media.userId,
+    }));
+  }
+
+  /**
+   * Get company's own bids
+   */
+  async getCompanyBids(companyId: number) {
+    const bids = await this.bidRepository.find({
+      where: { companyId },
+      relations: ['upload'],
+      order: { createdAt: 'DESC' },
+    });
+
+    return bids.map(bid => ({
+      id: bid.id,
+      amount: bid.amount,
+      message: bid.message,
+      bidType: bid.bidType,
+      status: bid.status,
+      upload: {
+        id: bid.upload.id,
+        title: bid.upload.title,
+        description: bid.upload.description,
+        filename: bid.upload.filename,
+        fileType: bid.upload.fileType,
+      },
+      createdAt: bid.createdAt,
+      updatedAt: bid.updatedAt,
+    }));
   }
 }
