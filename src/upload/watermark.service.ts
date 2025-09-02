@@ -13,64 +13,164 @@ export class WatermarkService {
    * @param watermarkText - Text to overlay as watermark
    * @returns Watermarked image URL
    */
-  async createWatermarkedImagePreview(originalUrl: string, watermarkText: string = 'PREVIEW ONLY'): Promise<string> {
+  async createWatermarkedImagePreview(publicIdOrUrl: string, watermarkText: string = 'NEWSAREUS'): Promise<string> {
     try {
-      // Extract public ID from Cloudinary URL
-      const publicId = this.extractPublicIdFromUrl(originalUrl);
+      // Accept either a full URL or a raw public ID
+      const publicId = publicIdOrUrl.includes('/upload/')
+        ? this.extractPublicIdFromUrl(publicIdOrUrl)
+        : publicIdOrUrl;
       
       if (!publicId) {
         throw new Error('Invalid Cloudinary URL');
       }
 
-      // Create watermarked version with transformations
-      const watermarkedUrl = cloudinary.url(publicId, {
-        transformation: [
-          // Add watermark overlay
+      // Persist derived watermarked image using eager transformation
+      const explicitResult = await cloudinary.uploader.explicit(publicId, {
+        type: 'upload',
+        resource_type: 'image',
+        eager: [
           {
-            overlay: {
-              font_family: 'Arial',
-              font_size: 40,
-              font_weight: 'bold',
-              text: watermarkText,
-            },
-            color: 'white',
-            gravity: 'center',
-            y: 0,
-            x: 0,
-          },
-          // Add semi-transparent background for watermark
-          {
-            overlay: {
-              font_family: 'Arial',
-              font_size: 40,
-              font_weight: 'bold',
-              text: watermarkText,
-            },
-            color: 'black',
-            gravity: 'center',
-            y: 2,
-            x: 2,
-            opacity: 30,
-          },
-          // Add "PREVIEW" text in corner
-          {
-            overlay: {
-              font_family: 'Arial',
-              font_size: 20,
-              font_weight: 'bold',
-              text: 'PREVIEW',
-            },
-            color: 'red',
-            gravity: 'north_east',
-            y: 20,
-            x: 20,
+            transformation: [
+              // Create multiple watermarks manually positioned across the image
+              {
+                overlay: {
+                  font_family: 'Arial',
+                  font_size: 120,
+                  font_weight: 'bold',
+                  text: watermarkText,
+                },
+                color: 'white',
+                opacity: 50,
+                angle: -45,
+                gravity: 'north_west',
+                x: 100,
+                y: 100,
+              },
+              {
+                overlay: {
+                  font_family: 'Arial',
+                  font_size: 120,
+                  font_weight: 'bold',
+                  text: watermarkText,
+                },
+                color: 'white',
+                opacity: 50,
+                angle: -45,
+                gravity: 'north_east',
+                x: -100,
+                y: 100,
+              },
+              {
+                overlay: {
+                  font_family: 'Arial',
+                  font_size: 120,
+                  font_weight: 'bold',
+                  text: watermarkText,
+                },
+                color: 'white',
+                opacity: 50,
+                angle: -45,
+                gravity: 'center',
+                x: 0,
+                y: 0,
+              },
+              {
+                overlay: {
+                  font_family: 'Arial',
+                  font_size: 120,
+                  font_weight: 'bold',
+                  text: watermarkText,
+                },
+                color: 'white',
+                opacity: 50,
+                angle: -45,
+                gravity: 'south_west',
+                x: 100,
+                y: -100,
+              },
+              {
+                overlay: {
+                  font_family: 'Arial',
+                  font_size: 120,
+                  font_weight: 'bold',
+                  text: watermarkText,
+                },
+                color: 'white',
+                opacity: 50,
+                angle: -45,
+                gravity: 'south_east',
+                x: -100,
+                y: -100,
+              },
+              // Additional watermarks for better coverage
+              {
+                overlay: {
+                  font_family: 'Arial',
+                  font_size: 120,
+                  font_weight: 'bold',
+                  text: watermarkText,
+                },
+                color: 'white',
+                opacity: 50,
+                angle: -45,
+                gravity: 'north',
+                x: 0,
+                y: 150,
+              },
+              {
+                overlay: {
+                  font_family: 'Arial',
+                  font_size: 120,
+                  font_weight: 'bold',
+                  text: watermarkText,
+                },
+                color: 'white',
+                opacity: 50,
+                angle: -45,
+                gravity: 'south',
+                x: 0,
+                y: -150,
+              },
+              {
+                overlay: {
+                  font_family: 'Arial',
+                  font_size: 120,
+                  font_weight: 'bold',
+                  text: watermarkText,
+                },
+                color: 'white',
+                opacity: 50,
+                angle: -45,
+                gravity: 'west',
+                x: 150,
+                y: 0,
+              },
+              {
+                overlay: {
+                  font_family: 'Arial',
+                  font_size: 120,
+                  font_weight: 'bold',
+                  text: watermarkText,
+                },
+                color: 'white',
+                opacity: 50,
+                angle: -45,
+                gravity: 'east',
+                x: -150,
+                y: 0,
+              },
+            ],
+            fetch_format: 'auto',
+            quality: 'auto',
           },
         ],
-        format: 'auto',
-        quality: 'auto',
       });
 
-      return watermarkedUrl;
+      const derivedUrl = explicitResult?.eager?.[0]?.secure_url || explicitResult?.eager?.[0]?.url;
+      if (!derivedUrl) {
+        throw new Error('Failed to derive watermarked image');
+      }
+      return derivedUrl;
     } catch (error) {
       console.error('Error creating watermarked image:', error);
       throw new Error('Failed to create watermarked preview');
@@ -78,71 +178,120 @@ export class WatermarkService {
   }
 
   /**
-   * Create a watermarked preview of a video (first 10 seconds)
+   * Create a watermarked preview of a video (half duration with watermark)
    * @param originalUrl - Original video URL
    * @param watermarkText - Text to overlay as watermark
    * @returns Watermarked video preview URL
    */
-  async createWatermarkedVideoPreview(originalUrl: string, watermarkText: string = 'PREVIEW ONLY'): Promise<string> {
+  async createWatermarkedVideoPreview(publicIdOrUrl: string, watermarkText: string = 'NEWSAREUS'): Promise<string> {
     try {
-      // Extract public ID from Cloudinary URL
-      const publicId = this.extractPublicIdFromUrl(originalUrl);
+      // Accept either a full URL or a raw public ID
+      const publicId = publicIdOrUrl.includes('/upload/')
+        ? this.extractPublicIdFromUrl(publicIdOrUrl)
+        : publicIdOrUrl;
       
       if (!publicId) {
         throw new Error('Invalid Cloudinary URL');
       }
 
-      // Create watermarked video preview (first 10 seconds)
-      const watermarkedUrl = cloudinary.url(publicId, {
-        transformation: [
-          // Limit to first 10 seconds
-          { duration: 10 },
-          // Add watermark overlay
+      // Get video info to calculate half duration
+      const videoInfo = await cloudinary.api.resource(publicId, { resource_type: 'video' });
+      const originalDuration = videoInfo.duration || 60; // Default to 60 seconds if duration not available
+      const previewDuration = Math.floor(originalDuration / 2); // Half duration
+
+      console.log(`Video: ${publicId}, Original duration: ${originalDuration}s, Preview duration: ${previewDuration}s`);
+
+      // Persist derived watermarked video preview using eager transformation
+      const explicitResult = await cloudinary.uploader.explicit(publicId, {
+        type: 'upload',
+        resource_type: 'video',
+        eager: [
           {
-            overlay: {
-              font_family: 'Arial',
-              font_size: 40,
-              font_weight: 'bold',
-              text: watermarkText,
-            },
-            color: 'white',
-            gravity: 'center',
-            y: 0,
-            x: 0,
-          },
-          // Add semi-transparent background for watermark
-          {
-            overlay: {
-              font_family: 'Arial',
-              font_size: 40,
-              font_weight: 'bold',
-              text: watermarkText,
-            },
-            color: 'black',
-            gravity: 'center',
-            y: 2,
-            x: 2,
-            opacity: 30,
-          },
-          // Add "PREVIEW" text in corner
-          {
-            overlay: {
-              font_family: 'Arial',
-              font_size: 20,
-              font_weight: 'bold',
-              text: 'PREVIEW',
-            },
-            color: 'red',
-            gravity: 'north_east',
-            y: 20,
-            x: 20,
+            transformation: [
+              { start_offset: 0, end_offset: previewDuration }, // Create preview from start to half duration
+              // Create multiple watermarks manually positioned across the video
+              {
+                overlay: {
+                  font_family: 'Arial',
+                  font_size: 80,
+                  font_weight: 'bold',
+                  text: watermarkText,
+                },
+                color: 'white',
+                opacity: 50,
+                angle: -45,
+                gravity: 'north_west',
+                x: 80,
+                y: 80,
+              },
+              {
+                overlay: {
+                  font_family: 'Arial',
+                  font_size: 80,
+                  font_weight: 'bold',
+                  text: watermarkText,
+                },
+                color: 'white',
+                opacity: 50,
+                angle: -45,
+                gravity: 'north_east',
+                x: -80,
+                y: 80,
+              },
+              {
+                overlay: {
+                  font_family: 'Arial',
+                  font_size: 80,
+                  font_weight: 'bold',
+                  text: watermarkText,
+                },
+                color: 'white',
+                opacity: 50,
+                angle: -45,
+                gravity: 'center',
+                x: 0,
+                y: 0,
+              },
+              {
+                overlay: {
+                  font_family: 'Arial',
+                  font_size: 80,
+                  font_weight: 'bold',
+                  text: watermarkText,
+                },
+                color: 'white',
+                opacity: 50,
+                angle: -45,
+                gravity: 'south_west',
+                x: 80,
+                y: -80,
+              },
+              {
+                overlay: {
+                  font_family: 'Arial',
+                  font_size: 80,
+                  font_weight: 'bold',
+                  text: watermarkText,
+                },
+                color: 'white',
+                opacity: 50,
+                angle: -45,
+                gravity: 'south_east',
+                x: -80,
+                y: -80,
+              },
+            ],
+            quality: 'auto',
+            format: 'mp4',
           },
         ],
-        format: 'mp4',
-        quality: 'auto',
       });
 
-      return watermarkedUrl;
+      const derivedUrl = explicitResult?.eager?.[0]?.secure_url || explicitResult?.eager?.[0]?.url;
+      if (!derivedUrl) {
+        throw new Error('Failed to derive watermarked video');
+      }
+      return derivedUrl;
     } catch (error) {
       console.error('Error creating watermarked video:', error);
       throw new Error('Failed to create watermarked video preview');
@@ -156,18 +305,22 @@ export class WatermarkService {
    */
   private extractPublicIdFromUrl(url: string): string | null {
     try {
-      const urlParts = url.split('/');
-      const uploadIndex = urlParts.findIndex(part => part === 'upload');
-      
-      if (uploadIndex === -1 || uploadIndex + 1 >= urlParts.length) {
+      const uploadMarker = '/upload/';
+      const uploadIndex = url.indexOf(uploadMarker);
+      if (uploadIndex === -1) {
         return null;
       }
 
-      // Get the part after 'upload' and before the file extension
-      const publicIdWithVersion = urlParts[uploadIndex + 1];
-      const publicId = publicIdWithVersion.split('.')[0];
-      
-      return publicId;
+      // Take everything after '/upload/' (this may include version and folders)
+      const afterUpload = url.substring(uploadIndex + uploadMarker.length).split('?')[0];
+
+      // Strip a leading version segment such as 'v1234567890/' if present
+      const withoutVersion = afterUpload.replace(/^v\d+\//, '');
+
+      // Remove the file extension (keep folder path + public id)
+      const withoutExtension = withoutVersion.replace(/\.[^/.]+$/, '');
+
+      return withoutExtension || null;
     } catch (error) {
       console.error('Error extracting public ID:', error);
       return null;
@@ -182,14 +335,14 @@ export class WatermarkService {
    * @returns Watermarked preview URL
    */
   async createWatermarkedPreview(
-    originalUrl: string, 
+    publicIdOrUrl: string, 
     fileType: 'image' | 'video', 
-    watermarkText: string = 'PREVIEW ONLY'
+    watermarkText: string = 'NEWSAREUS'
   ): Promise<string> {
     if (fileType === 'image') {
-      return this.createWatermarkedImagePreview(originalUrl, watermarkText);
+      return this.createWatermarkedImagePreview(publicIdOrUrl, watermarkText);
     } else {
-      return this.createWatermarkedVideoPreview(originalUrl, watermarkText);
+      return this.createWatermarkedVideoPreview(publicIdOrUrl, watermarkText);
     }
   }
 }

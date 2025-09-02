@@ -16,6 +16,18 @@ export class UploadDataDto {
   userId?: number;
 
   @ApiProperty({
+    description: 'Title of the upload',
+    example: 'My Amazing Video',
+  })
+  title: string;
+
+  @ApiProperty({
+    description: 'Description of the upload',
+    example: 'This is a beautiful video showcasing amazing content',
+  })
+  description: string;
+
+  @ApiProperty({
     description: 'Original filename',
     example: 'mypic.png',
   })

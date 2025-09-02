@@ -5,10 +5,11 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { CompaniesController } from './companies.controller';
 import { CompaniesService } from './companies.service';
 import { Company } from '../entities/company.entity';
+import { Upload } from '../entities/upload.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Company]),
+    TypeOrmModule.forFeature([Company, Upload]),
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({

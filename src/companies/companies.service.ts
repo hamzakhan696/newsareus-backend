@@ -1,9 +1,10 @@
-import { Injectable, ConflictException, UnauthorizedException, BadRequestException } from '@nestjs/common';
+import { Injectable, ConflictException, UnauthorizedException, BadRequestException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { Company } from '../entities/company.entity';
+import { Upload, FileType } from '../entities/upload.entity';
 import { CompanyRegisterDto } from './dto/company-register.dto';
 import { CompanyLoginDto } from './dto/company-login.dto';
 import { CompanyAuthResponseDto } from './dto/company-auth-response.dto';
@@ -13,6 +14,8 @@ export class CompaniesService {
   constructor(
     @InjectRepository(Company)
     private companyRepository: Repository<Company>,
+    @InjectRepository(Upload)
+    private uploadRepository: Repository<Upload>,
     private jwtService: JwtService,
   ) {}
 
@@ -179,5 +182,209 @@ export class CompaniesService {
     const company = await this.findById(id);
     company.isActive = isActive;
     return this.companyRepository.save(company);
+  }
+
+  /**
+   * Get all videos available for bidding with watermarked previews
+   * @returns Array of videos with watermarked previews
+   */
+  async getPreviewVideos() {
+    const videos = await this.uploadRepository.find({
+      where: { 
+        isAvailableForBidding: true,
+        fileType: FileType.VIDEO
+      },
+      select: [
+        'id',
+        'title',
+        'description',
+        'filename',
+        'fileType',
+        'watermarkedPreviewUrl',
+        'createdAt',
+        'userId'
+      ],
+      order: { createdAt: 'DESC' },
+    });
+
+    return {
+      success: true,
+      message: 'Preview videos retrieved successfully',
+      data: videos.map(video => ({
+        id: video.id,
+        title: video.title,
+        description: video.description,
+        filename: video.filename,
+        fileType: video.fileType,
+        previewUrl: video.watermarkedPreviewUrl, // Watermarked preview URL
+        createdAt: video.createdAt,
+        userId: video.userId
+      }))
+    };
+  }
+
+  /**
+   * Get specific video preview with watermark
+   * @param id - Video ID
+   * @returns Video with watermarked preview
+   */
+  async getPreviewVideo(id: number) {
+    const video = await this.uploadRepository.findOne({
+      where: { 
+        id,
+        isAvailableForBidding: true,
+        fileType: FileType.VIDEO
+      },
+      select: [
+        'id',
+        'title',
+        'description',
+        'filename',
+        'fileType',
+        'watermarkedPreviewUrl',
+        'createdAt',
+        'userId'
+      ],
+    });
+
+    if (!video) {
+      throw new NotFoundException('Video not found or not available for bidding');
+    }
+
+    return {
+      success: true,
+      message: 'Video preview retrieved successfully',
+      data: {
+        id: video.id,
+        title: video.title,
+        description: video.description,
+        filename: video.filename,
+        fileType: video.fileType,
+        previewUrl: video.watermarkedPreviewUrl, // Watermarked preview URL
+        createdAt: video.createdAt,
+        userId: video.userId
+      }
+    };
+  }
+
+  /**
+   * Get all images available for bidding with watermarked previews
+   * @returns Array of images with watermarked previews
+   */
+  async getPreviewImages() {
+    const images = await this.uploadRepository.find({
+      where: { 
+        isAvailableForBidding: true,
+        fileType: FileType.IMAGE
+      },
+      select: [
+        'id',
+        'title',
+        'description',
+        'filename',
+        'fileType',
+        'watermarkedPreviewUrl',
+        'createdAt',
+        'userId'
+      ],
+      order: { createdAt: 'DESC' },
+    });
+
+    return {
+      success: true,
+      message: 'Preview images retrieved successfully',
+      data: images.map(image => ({
+        id: image.id,
+        title: image.title,
+        description: image.description,
+        filename: image.filename,
+        fileType: image.fileType,
+        previewUrl: image.watermarkedPreviewUrl, // Watermarked preview URL
+        createdAt: image.createdAt,
+        userId: image.userId
+      }))
+    };
+  }
+
+  /**
+   * Get specific image preview with watermark
+   * @param id - Image ID
+   * @returns Image with watermarked preview
+   */
+  async getPreviewImage(id: number) {
+    const image = await this.uploadRepository.findOne({
+      where: { 
+        id,
+        isAvailableForBidding: true,
+        fileType: FileType.IMAGE
+      },
+      select: [
+        'id',
+        'title',
+        'description',
+        'filename',
+        'fileType',
+        'watermarkedPreviewUrl',
+        'createdAt',
+        'userId'
+      ],
+    });
+
+    if (!image) {
+      throw new NotFoundException('Image not found or not available for bidding');
+    }
+
+    return {
+      success: true,
+      message: 'Image preview retrieved successfully',
+      data: {
+        id: image.id,
+        title: image.title,
+        description: image.description,
+        filename: image.filename,
+        fileType: image.fileType,
+        previewUrl: image.watermarkedPreviewUrl, // Watermarked preview URL
+        createdAt: image.createdAt,
+        userId: image.userId
+      }
+    };
+  }
+
+  /**
+   * Get all media (images and videos) available for bidding with watermarked previews
+   * @returns Array of all media with watermarked previews
+   */
+  async getPreviewMedia() {
+    const allMedia = await this.uploadRepository.find({
+      where: { 
+        isAvailableForBidding: true,
+      },
+      select: [
+        'id',
+        'title',
+        'description',
+        'filename',
+        'fileType',
+        'watermarkedPreviewUrl',
+        'createdAt',
+        'userId'
+      ],
+      order: { createdAt: 'DESC' },
+    });
+
+    return {
+      success: true,
+      message: 'All preview media retrieved successfully',
+      data: allMedia.map(media => ({
+        id: media.id,
+        title: media.title,
+        description: media.description,
+        filename: media.filename,
+        fileType: media.fileType,
+        previewUrl: media.watermarkedPreviewUrl, // Watermarked preview URL
+        createdAt: media.createdAt,
+        userId: media.userId
+      }))
+    };
   }
 }

@@ -25,6 +25,22 @@ export class Upload {
   userId?: number;
 
   @ApiProperty({
+    description: 'Title of the upload (max 100 characters)',
+    example: 'My Amazing Video',
+    maxLength: 100,
+  })
+  @Column({ type: 'varchar', length: 100, nullable: false })
+  title: string;
+
+  @ApiProperty({
+    description: 'Description of the upload (max 500 characters)',
+    example: 'This is a beautiful video showcasing amazing content',
+    maxLength: 500,
+  })
+  @Column({ type: 'text', nullable: false })
+  description: string;
+
+  @ApiProperty({
     description: 'Original filename',
     example: 'mypic.png',
   })

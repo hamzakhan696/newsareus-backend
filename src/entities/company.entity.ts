@@ -1,14 +1,7 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
 import { ApiProperty } from '@nestjs/swagger';
 
-export enum CompanyType {
-  PRESS = 'press',
-  MEDIA = 'media',
-  NEWS_AGENCY = 'news_agency',
-  BROADCAST = 'broadcast',
-  DIGITAL_MEDIA = 'digital_media',
-  OTHER = 'other',
-}
+// CompanyType enum removed in favor of a free-form string
 
 @Entity('companies')
 export class Company {
@@ -69,16 +62,11 @@ export class Company {
   businessLicense: string;
 
   @ApiProperty({
-    description: 'Company type',
-    enum: CompanyType,
-    example: CompanyType.PRESS,
+    description: 'Company type (free text provided by user)',
+    example: 'press',
   })
-  @Column({
-    type: 'enum',
-    enum: CompanyType,
-    default: CompanyType.OTHER,
-  })
-  companyType: CompanyType;
+  @Column({ type: 'varchar', length: 100 })
+  companyType: string;
 
   @ApiProperty({
     description: 'Company verification status',

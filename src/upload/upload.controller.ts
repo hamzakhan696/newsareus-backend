@@ -9,12 +9,14 @@ import {
   ParseIntPipe,
   BadRequestException,
   Query,
+  Body,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { ApiTags, ApiOperation, ApiResponse, ApiConsumes, ApiBody, ApiQuery } from '@nestjs/swagger';
 import { UploadService } from './upload.service';
 import { UploadResponseDto, UploadsListResponseDto, DeleteResponseDto } from './dto/upload-response.dto';
+import { UploadRequestDto } from './dto/upload-request.dto';
 
 @ApiTags('upload')
 @Controller('upload')
@@ -27,9 +29,8 @@ export class UploadController {
       storage: memoryStorage(),
     }),
   )
-  @ApiOperation({ summary: 'Upload a file' })
+  @ApiOperation({ summary: 'Upload a file with title and description' })
   @ApiConsumes('multipart/form-data')
-  @ApiQuery({ name: 'userId', required: false, type: Number, description: 'User ID (optional)' })
   @ApiBody({
     schema: {
       type: 'object',
@@ -37,9 +38,24 @@ export class UploadController {
         file: {
           type: 'string',
           format: 'binary',
-          description: 'File to upload (JPG, JPEG, PNG images or MP4, MOV, AVI videos, max 100MB)',
+          description: 'File to upload (JPG, JPEG, PNG images or MP4, MOV, AVI videos)',
+        },
+        title: {
+          type: 'string',
+          description: 'Title of the upload (max 100 characters)',
+          maxLength: 100,
+        },
+        description: {
+          type: 'string',
+          description: 'Description of the upload (max 500 characters)',
+          maxLength: 500,
+        },
+        userId: {
+          type: 'number',
+          description: 'User ID (required)',
         },
       },
+      required: ['file', 'title', 'description', 'userId'],
     },
   })
   @ApiResponse({
@@ -49,18 +65,17 @@ export class UploadController {
   })
   @ApiResponse({
     status: 400,
-    description: 'Bad request - invalid file type or size',
+    description: 'Bad request - invalid file type, missing title/description/userId, or validation failed',
   })
   async uploadFile(
     @UploadedFile() file: Express.Multer.File,
-    @Query('userId') userId?: string,
+    @Body() uploadData: UploadRequestDto,
   ) {
     if (!file) {
       throw new BadRequestException('No file uploaded');
     }
     
-    const userIdNumber = userId ? parseInt(userId, 10) : undefined;
-    return this.uploadService.uploadFile(file, userIdNumber);
+    return this.uploadService.uploadFile(file, uploadData);
   }
 
   @Get('my-uploads')

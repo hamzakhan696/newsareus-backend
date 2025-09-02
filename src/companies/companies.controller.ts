@@ -7,8 +7,10 @@ import {
   Request,
   HttpCode,
   HttpStatus,
+  Param,
+  ParseIntPipe,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
 import { CompaniesService } from './companies.service';
 import { CompanyRegisterDto } from './dto/company-register.dto';
 import { CompanyLoginDto } from './dto/company-login.dto';
@@ -89,5 +91,65 @@ export class CompaniesController {
   async getAllCompanies(@Request() req) {
     // Note: In a real application, you'd want to add admin role checking here
     return this.companiesService.findAll();
+  }
+
+  @Get('preview-videos')
+  @ApiOperation({ summary: 'Get all videos available for bidding with watermarked previews (No authentication required)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Videos with watermarked previews retrieved successfully',
+  })
+  async getPreviewVideos() {
+    return this.companiesService.getPreviewVideos();
+  }
+
+  @Get('preview-images')
+  @ApiOperation({ summary: 'Get all images available for bidding with watermarked previews (No authentication required)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Images with watermarked previews retrieved successfully',
+  })
+  async getPreviewImages() {
+    return this.companiesService.getPreviewImages();
+  }
+
+  @Get('preview-media')
+  @ApiOperation({ summary: 'Get all media (images and videos) available for bidding with watermarked previews (No authentication required)' })
+  @ApiResponse({
+    status: 200,
+    description: 'All media with watermarked previews retrieved successfully',
+  })
+  async getPreviewMedia() {
+    return this.companiesService.getPreviewMedia();
+  }
+
+  @Get('preview-video/:id')
+  @ApiOperation({ summary: 'Get specific video preview with watermark (No authentication required)' })
+  @ApiParam({ name: 'id', description: 'Video ID', type: Number })
+  @ApiResponse({
+    status: 200,
+    description: 'Video preview retrieved successfully',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Video not found',
+  })
+  async getPreviewVideo(@Param('id', ParseIntPipe) id: number) {
+    return this.companiesService.getPreviewVideo(id);
+  }
+
+  @Get('preview-image/:id')
+  @ApiOperation({ summary: 'Get specific image preview with watermark (No authentication required)' })
+  @ApiParam({ name: 'id', description: 'Image ID', type: Number })
+  @ApiResponse({
+    status: 200,
+    description: 'Image preview retrieved successfully',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Image not found',
+  })
+  async getPreviewImage(@Param('id', ParseIntPipe) id: number) {
+    return this.companiesService.getPreviewImage(id);
   }
 }

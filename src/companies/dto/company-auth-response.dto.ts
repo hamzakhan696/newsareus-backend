@@ -1,5 +1,4 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { CompanyType } from '../../entities/company.entity';
 
 class CompanyInfoDto {
   @ApiProperty({
@@ -45,11 +44,10 @@ class CompanyInfoDto {
   businessLicense: string;
 
   @ApiProperty({
-    description: 'Company type',
-    enum: CompanyType,
-    example: CompanyType.PRESS,
+    description: 'Company type (free text provided by user)',
+    example: 'press',
   })
-  companyType: CompanyType;
+  companyType: string;
 
   @ApiProperty({
     description: 'Verification status',
