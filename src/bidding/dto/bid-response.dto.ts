@@ -27,6 +27,12 @@ export class UploadInfoDto {
 
   @ApiProperty({ example: 'video' })
   fileType: string;
+
+  @ApiProperty({ 
+    example: 'https://res.cloudinary.com/demo/video/upload/eo_30,so_0/a_-45,co_white,g_center,l_text:Arial_450_bold:NEWSAREUS,o_60,x_0,y_0/q_auto/v12345/watermarked_preview.mp4',
+    description: 'Watermarked preview URL for companies to see'
+  })
+  previewUrl: string;
 }
 
 export class BidResponseDto {

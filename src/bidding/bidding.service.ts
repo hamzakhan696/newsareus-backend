@@ -156,6 +156,7 @@ export class BiddingService {
         description: bid.upload.description,
         filename: bid.upload.filename,
         fileType: bid.upload.fileType,
+        previewUrl: bid.upload.watermarkedPreviewUrl,
       },
       createdAt: bid.createdAt,
       updatedAt: bid.updatedAt,
