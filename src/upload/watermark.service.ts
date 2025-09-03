@@ -8,10 +8,10 @@ export class WatermarkService {
   }
 
   /**
-   * Create a watermarked preview of an image
+   * Create a reliable watermarked preview using eager transformations
    * @param originalUrl - Original image URL
    * @param watermarkText - Text to overlay as watermark
-   * @returns Watermarked image URL
+   * @returns Clean watermarked image URL
    */
   async createWatermarkedImagePreview(publicIdOrUrl: string, watermarkText: string = 'NEWSAREUS'): Promise<string> {
     try {
@@ -24,40 +24,68 @@ export class WatermarkService {
         throw new Error('Invalid Cloudinary URL');
       }
 
-      // Create a simple, reliable watermark transformation
-      const watermarkedUrl = cloudinary.url(publicId, {
-        transformation: [
+      console.log(`Creating watermarked image using eager transformation: ${publicId}`);
+
+      // Use eager transformation to create and store the watermarked image permanently
+      // This approach creates a clean URL without complex transformations
+      const result = await cloudinary.uploader.explicit(publicId, {
+        type: 'upload',
+        resource_type: 'image',
+        eager: [
           {
-            overlay: {
-              font_family: 'Arial',
-              font_size: 120,
-              font_weight: 'bold',
-              text: watermarkText,
-            },
-            color: 'white',
-            opacity: 50,
-            angle: -45,
-            gravity: 'center',
-            x: 0,
-            y: 0,
+            transformation: [
+              // Single, large watermark in center
+              {
+                overlay: {
+                  font_family: 'Arial',
+                  font_size: 450,
+                  font_weight: 'bold',
+                  text: watermarkText,
+                },
+                color: 'white',
+                opacity: 60,
+                angle: -45,
+                gravity: 'center',
+                x: 0,
+                y: 0,
+              },
+            ],
+            fetch_format: 'auto',
+            quality: 'auto',
           },
         ],
-        fetch_format: 'auto',
-        quality: 'auto',
+        eager_async: true,
       });
 
+      // Get the generated watermarked image URL
+      const watermarkedUrl = result?.eager?.[0]?.secure_url || result?.eager?.[0]?.url;
+      
+      if (!watermarkedUrl) {
+        throw new Error('Failed to generate watermarked image');
+      }
+
+      console.log(`Successfully created watermarked image with clean URL`);
       return watermarkedUrl;
+
     } catch (error) {
-      console.error('Error creating watermarked image:', error);
-      throw new Error('Failed to create watermarked preview');
+      console.error('Error creating watermarked image with eager transformation:', error);
+      
+      // Fallback to simple URL transformation if eager fails
+      try {
+        console.log('Falling back to simple URL transformation...');
+        return this.createSimpleUrlWatermark(publicIdOrUrl, watermarkText);
+      } catch (fallbackError) {
+        console.error('Fallback also failed:', fallbackError);
+        throw new Error('Failed to create watermarked preview');
+      }
     }
   }
 
   /**
-   * Create a watermarked preview of a video (half duration with watermark)
+   * Create a reliable watermarked video preview using eager transformations
    * @param originalUrl - Original video URL
    * @param watermarkText - Text to overlay as watermark
-   * @returns Watermarked video preview URL
+   * @returns Clean watermarked video URL
    */
   async createWatermarkedVideoPreview(publicIdOrUrl: string, watermarkText: string = 'NEWSAREUS'): Promise<string> {
     try {
@@ -70,42 +98,139 @@ export class WatermarkService {
         throw new Error('Invalid Cloudinary URL');
       }
 
+      console.log(`Creating watermarked video using eager transformation: ${publicId}`);
+
       // Get video info to calculate half duration
       const videoInfo = await cloudinary.api.resource(publicId, { resource_type: 'video' });
-      const originalDuration = videoInfo.duration || 60; // Default to 60 seconds if duration not available
-      const previewDuration = Math.floor(originalDuration / 2); // Half duration
+      const originalDuration = videoInfo.duration || 60;
+      const previewDuration = Math.floor(originalDuration / 2);
 
       console.log(`Video: ${publicId}, Original duration: ${originalDuration}s, Preview duration: ${previewDuration}s`);
 
-      // Create a simple, reliable watermarked video preview
-      const watermarkedUrl = cloudinary.url(publicId, {
+      // Use eager transformation for video watermarking
+      const result = await cloudinary.uploader.explicit(publicId, {
+        type: 'upload',
         resource_type: 'video',
-        transformation: [
-          { start_offset: 0, end_offset: previewDuration }, // Create preview from start to half duration
+        eager: [
           {
-            overlay: {
-              font_family: 'Arial',
-              font_size: 80,
-              font_weight: 'bold',
-              text: watermarkText,
-            },
-            color: 'white',
-            opacity: 50,
-            angle: -45,
-            gravity: 'center',
-            x: 0,
-            y: 0,
+            transformation: [
+              { start_offset: 0, end_offset: previewDuration },
+              // Single, large watermark in center
+              {
+                overlay: {
+                  font_family: 'Arial',
+                  font_size: 450,
+                  font_weight: 'bold',
+                  text: watermarkText,
+                },
+                color: 'white',
+                opacity: 60,
+                angle: -45,
+                gravity: 'center',
+                x: 0,
+                y: 0,
+              },
+            ],
+            quality: 'auto',
+            format: 'mp4',
           },
         ],
-        quality: 'auto',
-        format: 'mp4',
+        eager_async: true,
       });
 
+      // Get the generated watermarked video URL
+      const watermarkedUrl = result?.eager?.[0]?.secure_url || result?.eager?.[0]?.url;
+      
+      if (!watermarkedUrl) {
+        throw new Error('Failed to generate watermarked video');
+      }
+
+      console.log(`Successfully created watermarked video with clean URL`);
       return watermarkedUrl;
+
     } catch (error) {
-      console.error('Error creating watermarked video:', error);
-      throw new Error('Failed to create watermarked video preview');
+      console.error('Error creating watermarked video with eager transformation:', error);
+      
+      // Fallback to simple URL transformation if eager fails
+      try {
+        console.log('Falling back to simple URL transformation...');
+        return this.createSimpleVideoUrlWatermark(publicIdOrUrl, watermarkText);
+      } catch (fallbackError) {
+        console.error('Fallback also failed:', fallbackError);
+        throw new Error('Failed to create watermarked video preview');
+      }
     }
+  }
+
+  /**
+   * Fallback simple URL watermark for images
+   */
+  private createSimpleUrlWatermark(publicIdOrUrl: string, watermarkText: string): string {
+    const publicId = publicIdOrUrl.includes('/upload/')
+      ? this.extractPublicIdFromUrl(publicIdOrUrl)
+      : publicIdOrUrl;
+    
+    if (!publicId) {
+      throw new Error('Invalid Cloudinary URL');
+    }
+    
+    // Single, simple watermark - no complex transformations
+    return cloudinary.url(publicId, {
+      transformation: [
+        {
+          overlay: {
+            font_family: 'Arial',
+            font_size: 300,
+            font_weight: 'bold',
+            text: watermarkText,
+          },
+          color: 'white',
+          opacity: 50,
+          angle: -45,
+          gravity: 'center',
+          x: 0,
+          y: 0,
+        },
+      ],
+      fetch_format: 'auto',
+      quality: 'auto',
+    });
+  }
+
+  /**
+   * Fallback simple URL watermark for videos
+   */
+  private createSimpleVideoUrlWatermark(publicIdOrUrl: string, watermarkText: string): string {
+    const publicId = publicIdOrUrl.includes('/upload/')
+      ? this.extractPublicIdFromUrl(publicIdOrUrl)
+      : publicIdOrUrl;
+    
+    if (!publicId) {
+      throw new Error('Invalid Cloudinary URL');
+    }
+    
+    // Single, simple watermark - no complex transformations
+    return cloudinary.url(publicId, {
+      resource_type: 'video',
+      transformation: [
+        {
+          overlay: {
+            font_family: 'Arial',
+            font_size: 300,
+            font_weight: 'bold',
+            text: watermarkText,
+          },
+          color: 'white',
+          opacity: 50,
+          angle: -45,
+          gravity: 'center',
+          x: 0,
+          y: 0,
+        },
+      ],
+      quality: 'auto',
+      format: 'mp4',
+    });
   }
 
   /**
@@ -138,11 +263,11 @@ export class WatermarkService {
   }
 
   /**
-   * Create watermarked preview for any file type
+   * Create professional watermarked preview for any file type
    * @param originalUrl - Original file URL
    * @param fileType - Type of file (image or video)
    * @param watermarkText - Text to overlay as watermark
-   * @returns Watermarked preview URL
+   * @returns Professional watermarked preview URL
    */
   async createWatermarkedPreview(
     publicIdOrUrl: string, 
