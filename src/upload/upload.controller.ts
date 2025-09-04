@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Delete, Param, Query, Body, UseInterceptors, UploadedFile, ParseIntPipe, BadRequestException } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
-import { ApiTags, ApiOperation, ApiResponse, ApiConsumes, ApiBody, ApiQuery } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiConsumes, ApiBody, ApiQuery, ApiParam } from '@nestjs/swagger';
 import { UploadService } from './upload.service';
 import { UploadResponseDto, UploadsListResponseDto, DeleteResponseDto } from './dto/upload-response.dto';
 import { UploadRequestDto } from './dto/upload-request.dto';
@@ -80,6 +80,33 @@ export class UploadController {
   })
   async getUploadsByUserId(@Query('userId', ParseIntPipe) userId: number) {
     return this.uploadService.getUploadsByUserId(userId);
+  }
+
+  @Get('pending-bids/:userId')
+  @ApiOperation({ summary: 'Get uploads with pending bids that need user attention' })
+  @ApiParam({ name: 'userId', description: 'User ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Uploads with pending bids retrieved successfully',
+    type: UploadsListResponseDto,
+  })
+  async getUploadsWithPendingBids(@Param('userId', ParseIntPipe) userId: number) {
+    return this.uploadService.getUploadsWithPendingBids(userId);
+  }
+
+  @Get(':id')
+  @ApiOperation({ summary: 'Get upload details by ID with bids' })
+  @ApiResponse({
+    status: 200,
+    description: 'Upload details retrieved successfully',
+    type: UploadResponseDto,
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Upload not found',
+  })
+  async getUploadById(@Param('id', ParseIntPipe) id: number) {
+    return this.uploadService.getUploadById(id);
   }
 
   @Delete(':id')

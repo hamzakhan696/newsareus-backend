@@ -1,5 +1,49 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { FileType } from '../../entities/upload.entity';
+import { FileType, UploadStatus } from '../../entities/upload.entity';
+
+export class BidInfoDto {
+  @ApiProperty({
+    description: 'Bid ID',
+    example: 1,
+  })
+  id: number;
+
+  @ApiProperty({
+    description: 'Bid amount',
+    example: 1000.50,
+  })
+  amount: number;
+
+  @ApiProperty({
+    description: 'Bid message from company',
+    example: 'We love your content and would like to work with you!',
+  })
+  message: string;
+
+  @ApiProperty({
+    description: 'Type of bid',
+    example: 'exclusive_rights',
+  })
+  bidType: string;
+
+  @ApiProperty({
+    description: 'Bid status',
+    example: 'pending',
+  })
+  status: string;
+
+  @ApiProperty({
+    description: 'Company name',
+    example: 'ABC Media Company',
+  })
+  companyName: string;
+
+  @ApiProperty({
+    description: 'Bid creation date',
+    example: '2025-01-27T10:15:00.000Z',
+  })
+  createdAt: Date;
+}
 
 export class UploadDataDto {
   @ApiProperty({
@@ -45,6 +89,19 @@ export class UploadDataDto {
     example: FileType.IMAGE,
   })
   fileType: FileType;
+
+  @ApiProperty({
+    description: 'Overall status of the upload',
+    enum: UploadStatus,
+    example: UploadStatus.PENDING,
+  })
+  status: UploadStatus;
+
+  @ApiProperty({
+    description: 'Number of bids received for this upload',
+    example: 3,
+  })
+  bidCount: number;
 
   @ApiProperty({
     description: 'Upload creation date',

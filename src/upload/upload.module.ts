@@ -6,10 +6,11 @@ import { UploadService } from './upload.service';
 import { CloudinaryService } from './cloudinary.service';
 import { WatermarkService } from './watermark.service';
 import { Upload } from '../entities/upload.entity';
+import { Bid } from '../entities/bid.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Upload]),
+    TypeOrmModule.forFeature([Upload, Bid]),
     ConfigModule,
   ],
   controllers: [UploadController],

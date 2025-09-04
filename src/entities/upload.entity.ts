@@ -7,6 +7,14 @@ export enum FileType {
   VIDEO = 'video',
 }
 
+export enum UploadStatus {
+  PENDING = 'pending',
+  BID_RECEIVED = 'bid_received',
+  ACCEPTED = 'accepted',
+  REJECTED = 'rejected',
+  COMPLETED = 'completed'
+}
+
 @Entity('uploads')
 export class Upload {
   @ApiProperty({
@@ -94,6 +102,18 @@ export class Upload {
   })
   @Column({ default: true })
   isAvailableForBidding: boolean;
+
+  @ApiProperty({
+    description: 'Overall status of the upload',
+    enum: UploadStatus,
+    example: UploadStatus.PENDING,
+  })
+  @Column({
+    type: 'enum',
+    enum: UploadStatus,
+    default: UploadStatus.PENDING
+  })
+  status: UploadStatus;
 
   @ApiProperty({
     description: 'Upload creation date',

@@ -3,8 +3,9 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CloudinaryService } from './cloudinary.service';
 import { WatermarkService } from './watermark.service';
-import { Upload, FileType } from '../entities/upload.entity';
+import { Upload, FileType, UploadStatus } from '../entities/upload.entity';
 import { UploadRequestDto } from './dto/upload-request.dto';
+import { Bid } from '../entities/bid.entity';
 
 @Injectable()
 export class UploadService {
@@ -15,6 +16,8 @@ export class UploadService {
   constructor(
     @InjectRepository(Upload)
     private uploadRepository: Repository<Upload>,
+    @InjectRepository(Bid)
+    private bidRepository: Repository<Bid>,
     private cloudinaryService: CloudinaryService,
     private watermarkService: WatermarkService,
   ) {}
@@ -102,6 +105,7 @@ export class UploadService {
       cloudinaryPublicId: cloudinaryResult.publicId,
       watermarkedPreviewUrl, // Store for company previews
       isAvailableForBidding: true,
+      status: UploadStatus.PENDING, // Set initial status
       userId: parsedUserId, // Use parsed userId
     });
 
@@ -120,6 +124,8 @@ export class UploadService {
         fileUrl: savedUpload.fileUrl, // Original file URL (no watermark)
         fileType: savedUpload.fileType,
         fileSize: savedUpload.fileSize,
+        status: savedUpload.status,
+        bidCount: 0, // No bids initially
         createdAt: savedUpload.createdAt,
         // watermarkedPreviewUrl is NOT included in user response
       },
@@ -134,18 +140,7 @@ export class UploadService {
     return {
       success: true,
       message: 'All uploads retrieved successfully',
-      data: uploads.map(upload => ({
-        id: upload.id,
-        userId: upload.userId,
-        title: upload.title,
-        description: upload.description,
-        filename: upload.filename,
-        fileUrl: upload.fileUrl, // Original file URL (no watermark)
-        fileType: upload.fileType,
-        fileSize: upload.fileSize,
-        createdAt: upload.createdAt,
-        // watermarkedPreviewUrl is NOT included in user response
-      })),
+      data: await Promise.all(uploads.map(upload => this.mapUploadWithBids(upload))),
     };
   }
 
@@ -158,18 +153,40 @@ export class UploadService {
     return {
       success: true,
       message: `Uploads for user ${userId} retrieved successfully`,
-      data: uploads.map(upload => ({
-        id: upload.id,
-        userId: upload.userId,
-        title: upload.title,
-        description: upload.description,
-        filename: upload.filename,
-        fileUrl: upload.fileUrl, // Original file URL (no watermark)
-        fileType: upload.fileType,
-        fileSize: upload.fileSize,
-        createdAt: upload.createdAt,
-        // watermarkedPreviewUrl is NOT included in user response
-      })),
+      data: await Promise.all(uploads.map(upload => this.mapUploadWithBids(upload))),
+    };
+  }
+
+  async getUploadsWithPendingBids(userId: number) {
+    // Get uploads that have pending bids
+    const uploadsWithBids = await this.uploadRepository
+      .createQueryBuilder('upload')
+      .leftJoin('upload.bids', 'bid')
+      .where('upload.userId = :userId', { userId })
+      .andWhere('bid.status = :bidStatus', { bidStatus: 'pending' })
+      .orderBy('upload.createdAt', 'DESC')
+      .getMany();
+
+    return {
+      success: true,
+      message: `Uploads with pending bids for user ${userId} retrieved successfully`,
+      data: await Promise.all(uploadsWithBids.map(upload => this.mapUploadWithBids(upload))),
+    };
+  }
+
+  async getUploadById(uploadId: number) {
+    const upload = await this.uploadRepository.findOne({
+      where: { id: uploadId },
+    });
+
+    if (!upload) {
+      throw new BadRequestException('Upload not found');
+    }
+
+    return {
+      success: true,
+      message: 'Upload details retrieved successfully',
+      data: await this.mapUploadWithBids(upload),
     };
   }
 
@@ -194,5 +211,64 @@ export class UploadService {
       success: true,
       message: 'File deleted successfully',
     };
+  }
+
+  /**
+   * Map upload entity to response DTO with bid count
+   */
+  private async mapUploadWithBids(upload: Upload) {
+    // Get bids for this upload
+    const bids = await this.bidRepository.find({
+      where: { uploadId: upload.id },
+      relations: ['company'],
+      order: { createdAt: 'DESC' }
+    });
+
+    return {
+      id: upload.id,
+      userId: upload.userId,
+      title: upload.title,
+      description: upload.description,
+      filename: upload.filename,
+      fileUrl: upload.fileUrl, // Original file URL (no watermark)
+      fileType: upload.fileType,
+      fileSize: upload.fileSize,
+      status: upload.status,
+      bidCount: bids.length, // Just return the count instead of full array
+      createdAt: upload.createdAt,
+      // watermarkedPreviewUrl is NOT included in user response
+    };
+  }
+
+  /**
+   * Update upload status when bid is received
+   */
+  async updateUploadStatusOnBid(uploadId: number) {
+    const upload = await this.uploadRepository.findOne({
+      where: { id: uploadId }
+    });
+
+    if (upload && upload.status === UploadStatus.PENDING) {
+      await this.uploadRepository.update(uploadId, { 
+        status: UploadStatus.BID_RECEIVED 
+      });
+    }
+  }
+
+  /**
+   * Update upload status when bid is accepted/rejected
+   */
+  async updateUploadStatusOnBidAction(uploadId: number, bidStatus: string) {
+    let newStatus: UploadStatus;
+    
+    if (bidStatus === 'accepted') {
+      newStatus = UploadStatus.ACCEPTED;
+    } else if (bidStatus === 'declined') {
+      newStatus = UploadStatus.REJECTED;
+    } else {
+      return; // No status change needed
+    }
+
+    await this.uploadRepository.update(uploadId, { status: newStatus });
   }
 }

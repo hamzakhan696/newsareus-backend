@@ -7,6 +7,7 @@ import { UpdateBidStatusDto } from './dto/update-bid-status.dto';
 import { BidResponseDto } from './dto/bid-response.dto';
 import { Company } from '../entities/company.entity';
 import { Upload } from '../entities/upload.entity';
+import { UploadService } from '../upload/upload.service';
 
 @Injectable()
 export class BiddingService {
@@ -17,6 +18,7 @@ export class BiddingService {
     private companyRepository: Repository<Company>,
     @InjectRepository(Upload)
     private uploadRepository: Repository<Upload>,
+    private uploadService: UploadService,
   ) {}
 
   /**
@@ -49,6 +51,9 @@ export class BiddingService {
     });
 
     const savedBid = await this.bidRepository.save(bid);
+
+    // Update upload status to indicate bid received
+    await this.uploadService.updateUploadStatusOnBid(createBidDto.uploadId);
 
     // Return bid with relations
     return this.getBidWithRelations(savedBid.id);
@@ -110,6 +115,9 @@ export class BiddingService {
     // Update bid status
     bid.status = updateBidStatusDto.status;
     await this.bidRepository.save(bid);
+
+    // Update upload status based on bid action
+    await this.uploadService.updateUploadStatusOnBidAction(bid.uploadId, updateBidStatusDto.status);
 
     // If bid is accepted, hide the upload from other companies
     if (updateBidStatusDto.status === BidStatus.ACCEPTED) {
