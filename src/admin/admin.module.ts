@@ -10,10 +10,12 @@ import { AdminAuthService } from './admin-auth.service';
 import { AdminJwtStrategy } from './strategies/admin-jwt.strategy';
 import { User } from '../entities/user.entity';
 import { Company } from '../entities/company.entity';
+import { Upload } from '../entities/upload.entity';
+import { Bid } from '../entities/bid.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, Company]),
+    TypeOrmModule.forFeature([User, Company, Upload, Bid]),
     PassportModule.register({ defaultStrategy: 'admin-jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],

@@ -52,4 +52,110 @@ export class AdminController {
   ) {
     return this.adminService.getCompanies(page, search);
   }
+
+  @Get('dashboard/stats')
+  @UseGuards(AdminJwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get dashboard statistics' })
+  @ApiResponse({
+    status: 200,
+    description: 'Dashboard statistics retrieved successfully',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - Admin authentication required',
+  })
+  async getDashboardStats() {
+    return this.adminService.getDashboardStats();
+  }
+
+  @Get('media/stats')
+  @UseGuards(AdminJwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get media statistics' })
+  @ApiResponse({
+    status: 200,
+    description: 'Media statistics retrieved successfully',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - Admin authentication required',
+  })
+  async getMediaStats() {
+    return this.adminService.getMediaStats();
+  }
+
+  @Get('bidding/stats')
+  @UseGuards(AdminJwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get bidding statistics' })
+  @ApiResponse({
+    status: 200,
+    description: 'Bidding statistics retrieved successfully',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - Admin authentication required',
+  })
+  async getBiddingStats() {
+    return this.adminService.getBiddingStats();
+  }
+
+  @Get('activity/recent')
+  @UseGuards(AdminJwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get recent platform activity' })
+  @ApiResponse({
+    status: 200,
+    description: 'Recent activity retrieved successfully',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - Admin authentication required',
+  })
+  async getRecentActivity() {
+    return this.adminService.getRecentActivity();
+  }
+
+  @Get('media')
+  @UseGuards(AdminJwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get all media uploads with pagination and search' })
+  @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (default: 1)' })
+  @ApiQuery({ name: 'search', required: false, type: String, description: 'Search by title or description' })
+  @ApiResponse({
+    status: 200,
+    description: 'Media uploads retrieved successfully',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - Admin authentication required',
+  })
+  async getMediaUploads(
+    @Query('page', new ParseIntPipe({ optional: true })) page: number = 1,
+    @Query('search') search?: string,
+  ) {
+    return this.adminService.getMediaUploads(page, search);
+  }
+
+  @Get('bids')
+  @UseGuards(AdminJwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get all bids with pagination and search' })
+  @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (default: 1)' })
+  @ApiQuery({ name: 'search', required: false, type: String, description: 'Search by media title or company name' })
+  @ApiResponse({
+    status: 200,
+    description: 'Bids retrieved successfully',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - Admin authentication required',
+  })
+  async getBids(
+    @Query('page', new ParseIntPipe({ optional: true })) page: number = 1,
+    @Query('search') search?: string,
+  ) {
+    return this.adminService.getBids(page, search);
+  }
 }
