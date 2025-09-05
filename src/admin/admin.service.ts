@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { User } from '../entities/user.entity';
+import { Repository, Between } from 'typeorm';
+import { User, UserRole } from '../entities/user.entity';
 import { Company } from '../entities/company.entity';
 import { Upload, UploadStatus } from '../entities/upload.entity';
 import { Bid, BidStatus } from '../entities/bid.entity';
@@ -114,8 +114,8 @@ export class AdminService {
   async getDashboardStats() {
     // Get user statistics
     const totalUsers = await this.userRepository.count();
-    const activeUsers = await this.userRepository.count({ where: { role: 'user' } });
-    const adminUsers = await this.userRepository.count({ where: { role: 'admin' } });
+    const activeUsers = await this.userRepository.count({ where: { role: UserRole.USER } });
+    const adminUsers = await this.userRepository.count({ where: { role: UserRole.ADMIN } });
 
     // Get company statistics
     const totalCompanies = await this.companyRepository.count();
@@ -125,7 +125,7 @@ export class AdminService {
     // Get upload statistics
     const totalUploads = await this.uploadRepository.count();
     const pendingUploads = await this.uploadRepository.count({ where: { status: UploadStatus.PENDING } });
-    const approvedUploads = await this.uploadRepository.count({ where: { status: UploadStatus.APPROVED } });
+    const approvedUploads = await this.uploadRepository.count({ where: { status: UploadStatus.ACCEPTED } });
     const rejectedUploads = await this.uploadRepository.count({ where: { status: UploadStatus.REJECTED } });
 
     // Get bid statistics
@@ -141,19 +141,13 @@ export class AdminService {
 
     const todayUploads = await this.uploadRepository.count({
       where: {
-        createdAt: {
-          $gte: today,
-          $lt: tomorrow,
-        } as any,
+        createdAt: Between(today, tomorrow),
       },
     });
 
     const todayBids = await this.bidRepository.count({
       where: {
-        createdAt: {
-          $gte: today,
-          $lt: tomorrow,
-        } as any,
+        createdAt: Between(today, tomorrow),
       },
     });
 
@@ -193,10 +187,8 @@ export class AdminService {
     const pendingReview = await this.uploadRepository.count({ where: { status: UploadStatus.PENDING } });
     const approvedToday = await this.uploadRepository.count({
       where: {
-        status: UploadStatus.APPROVED,
-        createdAt: {
-          $gte: new Date(new Date().setHours(0, 0, 0, 0)),
-        } as any,
+        status: UploadStatus.ACCEPTED,
+        createdAt: Between(new Date(new Date().setHours(0, 0, 0, 0)), new Date()),
       },
     });
     const flaggedContent = await this.uploadRepository.count({ where: { status: UploadStatus.REJECTED } });
@@ -221,9 +213,7 @@ export class AdminService {
     const todayBids = await this.bidRepository.find({
       where: {
         status: BidStatus.ACCEPTED,
-        createdAt: {
-          $gte: new Date(new Date().setHours(0, 0, 0, 0)),
-        } as any,
+        createdAt: Between(new Date(new Date().setHours(0, 0, 0, 0)), new Date()),
       },
     });
     
@@ -265,7 +255,15 @@ export class AdminService {
     });
 
     // Format activity data
-    const activities = [];
+    const activities: Array<{
+      id: string;
+      type: string;
+      action: string;
+      user: string;
+      details: string;
+      time: string;
+      status: UploadStatus | BidStatus;
+    }> = [];
 
     // Add upload activities
     recentUploads.forEach(upload => {
@@ -294,7 +292,11 @@ export class AdminService {
     });
 
     // Sort by creation time and take top 10
-    activities.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
+    activities.sort((a, b) => {
+      const timeA = new Date(a.time.includes('ago') ? new Date() : a.time).getTime();
+      const timeB = new Date(b.time.includes('ago') ? new Date() : b.time).getTime();
+      return timeB - timeA;
+    });
     
     return {
       success: true,
