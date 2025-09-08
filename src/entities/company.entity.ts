@@ -83,6 +83,14 @@ export class Company {
   isActive: boolean;
 
   @ApiProperty({
+    description: 'FCM token for push notifications',
+    example: 'fcm_token_here',
+    required: false,
+  })
+  @Column({ nullable: true })
+  fcmToken?: string;
+
+  @ApiProperty({
     description: 'Account creation date',
     example: '2025-01-27T10:15:00.000Z',
   })

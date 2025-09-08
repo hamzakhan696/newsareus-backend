@@ -35,7 +35,7 @@ export class CompaniesService {
   }
 
   async register(registerDto: CompanyRegisterDto): Promise<CompanyAuthResponseDto> {
-    const { companyName, companyEmail, password, phoneNumber, businessLicense, companyAddress, companyWebsite, companyType } = registerDto;
+    const { companyName, companyEmail, password, phoneNumber, businessLicense, companyAddress, companyWebsite, companyType, fcmToken } = registerDto;
 
     // Check if company already exists
     const existingCompany = await this.companyRepository.findOne({
@@ -65,6 +65,7 @@ export class CompaniesService {
       companyWebsite,
       businessLicense,
       companyType,
+      fcmToken,
     });
 
     const savedCompany = await this.companyRepository.save(company);
@@ -93,7 +94,7 @@ export class CompaniesService {
   }
 
   async login(loginDto: CompanyLoginDto): Promise<CompanyAuthResponseDto> {
-    const { companyEmail, password } = loginDto;
+    const { companyEmail, password, fcmToken } = loginDto;
 
     // Find company by email
     const company = await this.companyRepository.findOne({
@@ -114,6 +115,12 @@ export class CompaniesService {
     // Check if company is active
     if (!company.isActive) {
       throw new UnauthorizedException('Account is deactivated');
+    }
+
+    // Update FCM token if provided
+    if (fcmToken && fcmToken !== company.fcmToken) {
+      await this.companyRepository.update(company.id, { fcmToken });
+      company.fcmToken = fcmToken;
     }
 
     // Generate JWT token

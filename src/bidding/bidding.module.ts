@@ -5,12 +5,15 @@ import { BiddingService } from './bidding.service';
 import { Bid } from '../entities/bid.entity';
 import { Company } from '../entities/company.entity';
 import { Upload } from '../entities/upload.entity';
+import { User } from '../entities/user.entity';
 import { UploadModule } from '../upload/upload.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Bid, Company, Upload]),
-    UploadModule
+    TypeOrmModule.forFeature([Bid, Company, Upload, User]),
+    UploadModule,
+    NotificationsModule
   ],
   controllers: [BiddingController],
   providers: [BiddingService],

@@ -6,6 +6,8 @@ import { WatermarkService } from './watermark.service';
 import { Upload, FileType, UploadStatus } from '../entities/upload.entity';
 import { UploadRequestDto } from './dto/upload-request.dto';
 import { Bid } from '../entities/bid.entity';
+import { Company } from '../entities/company.entity';
+import { FcmService } from '../notifications/fcm.service';
 
 @Injectable()
 export class UploadService {
@@ -18,8 +20,11 @@ export class UploadService {
     private uploadRepository: Repository<Upload>,
     @InjectRepository(Bid)
     private bidRepository: Repository<Bid>,
+    @InjectRepository(Company)
+    private companyRepository: Repository<Company>,
     private cloudinaryService: CloudinaryService,
     private watermarkService: WatermarkService,
+    private fcmService: FcmService,
   ) {}
 
   private validateFile(file: Express.Multer.File): void {
@@ -110,6 +115,9 @@ export class UploadService {
     });
 
     const savedUpload = await this.uploadRepository.save(upload);
+
+    // Send notification to all companies about new media upload
+    await this.sendNewMediaNotification(savedUpload);
 
     // Return response WITHOUT watermarked preview URL to user
     return {
@@ -270,5 +278,41 @@ export class UploadService {
     }
 
     await this.uploadRepository.update(uploadId, { status: newStatus });
+  }
+
+  /**
+   * Send notification to all companies when new media is uploaded
+   */
+  private async sendNewMediaNotification(upload: Upload): Promise<void> {
+    try {
+      // Get all active companies with FCM tokens
+      const companies = await this.companyRepository.find({
+        where: { isActive: true },
+        select: ['fcmToken', 'companyName'],
+      });
+
+      const companiesWithTokens = companies.filter(company => company.fcmToken);
+      
+      if (companiesWithTokens.length === 0) {
+        return; // No companies with FCM tokens
+      }
+
+      const tokens = companiesWithTokens.map(company => company.fcmToken!);
+
+      const notification = {
+        title: 'New Media Available! 📸',
+        body: `New ${upload.fileType} "${upload.title}" is now available for bidding`,
+        data: {
+          type: 'new_media',
+          uploadId: upload.id.toString(),
+          fileType: upload.fileType,
+          title: upload.title,
+        },
+      };
+
+      await this.fcmService.sendToMultipleDevices(tokens, notification);
+    } catch (error) {
+      console.error('Failed to send new media notification:', error);
+    }
   }
 }

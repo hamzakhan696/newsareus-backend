@@ -75,4 +75,13 @@ export class CompanyRegisterDto {
   @IsString()
   @IsNotEmpty()
   companyType: string;
+
+  @ApiProperty({
+    description: 'FCM token for push notifications',
+    example: 'fcm_token_here',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  fcmToken?: string;
 }
