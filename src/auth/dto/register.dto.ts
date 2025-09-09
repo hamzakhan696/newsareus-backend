@@ -1,4 +1,4 @@
-import { IsEmail, IsString, MinLength, MaxLength, IsNotEmpty } from 'class-validator';
+import { IsEmail, IsString, MinLength, MaxLength, IsNotEmpty, IsOptional } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class RegisterDto {
@@ -37,4 +37,13 @@ export class RegisterDto {
   @MaxLength(100)
   @IsNotEmpty()
   password: string;
+
+  @ApiProperty({
+    description: 'FCM token for push notifications',
+    example: 'fcm_token_here',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  fcmToken?: string;
 }

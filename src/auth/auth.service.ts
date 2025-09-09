@@ -16,7 +16,7 @@ export class AuthService {
   ) {}
 
   async register(registerDto: RegisterDto) {
-    const { username, email, phoneNumber, password } = registerDto;
+    const { username, email, phoneNumber, password, fcmToken } = registerDto;
 
     // Check if user already exists
     const existingUser = await this.userRepository.findOne({
@@ -37,6 +37,7 @@ export class AuthService {
       email,
       phoneNumber,
       password: hashedPassword,
+      fcmToken,
     });
 
     const savedUser = await this.userRepository.save(user);
@@ -60,7 +61,7 @@ export class AuthService {
   }
 
   async login(loginDto: LoginDto) {
-    const { email, password } = loginDto;
+    const { email, password, fcmToken } = loginDto;
 
     // Find user by email
     const user = await this.userRepository.findOne({
@@ -76,6 +77,12 @@ export class AuthService {
 
     if (!user || !isPasswordValid) {
       throw new UnauthorizedException('Invalid credentials');
+    }
+
+    // Update FCM token if provided
+    if (fcmToken && fcmToken !== user.fcmToken) {
+      await this.userRepository.update(user.id, { fcmToken });
+      user.fcmToken = fcmToken;
     }
 
     // Generate JWT token

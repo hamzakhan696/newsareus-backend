@@ -8,6 +8,7 @@ import { BiddingModule } from './bidding/bidding.module';
 import { CompaniesModule } from './companies/companies.module';
 import { UploadModule } from './upload/upload.module';
 import { AdminModule } from './admin/admin.module';
+import { NotificationsModule } from './notifications/notifications.module';
 import { User } from './entities/user.entity';
 import { Company } from './entities/company.entity';
 import { Upload } from './entities/upload.entity';
@@ -34,6 +35,7 @@ import { Bid } from './entities/bid.entity';
     CompaniesModule,
     UploadModule,
     AdminModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

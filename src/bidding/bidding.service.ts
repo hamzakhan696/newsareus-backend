@@ -7,7 +7,9 @@ import { UpdateBidStatusDto } from './dto/update-bid-status.dto';
 import { BidResponseDto } from './dto/bid-response.dto';
 import { Company } from '../entities/company.entity';
 import { Upload } from '../entities/upload.entity';
+import { User } from '../entities/user.entity';
 import { UploadService } from '../upload/upload.service';
+import { FcmService } from '../notifications/fcm.service';
 
 @Injectable()
 export class BiddingService {
@@ -18,7 +20,10 @@ export class BiddingService {
     private companyRepository: Repository<Company>,
     @InjectRepository(Upload)
     private uploadRepository: Repository<Upload>,
+    @InjectRepository(User)
+    private userRepository: Repository<User>,
     private uploadService: UploadService,
+    private fcmService: FcmService,
   ) {}
 
   /**
@@ -54,6 +59,11 @@ export class BiddingService {
 
     // Update upload status to indicate bid received
     await this.uploadService.updateUploadStatusOnBid(createBidDto.uploadId);
+
+    // Send notification to the user who uploaded the media
+    if (upload.userId) {
+      await this.sendNewBidNotification(upload.userId, savedBid);
+    }
 
     // Return bid with relations
     return this.getBidWithRelations(savedBid.id);
@@ -124,6 +134,9 @@ export class BiddingService {
       await this.uploadRepository.update(bid.uploadId, { isAvailableForBidding: false });
     }
 
+    // Send notification to the company about bid status change
+    await this.sendBidStatusChangeNotification(bid.companyId, bid, updateBidStatusDto.status);
+
     return this.getBidWithRelations(bidId);
   }
 
@@ -169,5 +182,99 @@ export class BiddingService {
       createdAt: bid.createdAt,
       updatedAt: bid.updatedAt,
     };
+  }
+
+  /**
+   * Send notification to user when a new bid is placed on their upload
+   */
+  private async sendNewBidNotification(userId: number, bid: Bid): Promise<void> {
+    try {
+      const user = await this.userRepository.findOne({
+        where: { id: userId },
+        select: ['fcmToken', 'username'],
+      });
+
+      if (!user || !user.fcmToken) {
+        return; // No FCM token available
+      }
+
+      const company = await this.companyRepository.findOne({
+        where: { id: bid.companyId },
+        select: ['companyName'],
+      });
+
+      const upload = await this.uploadRepository.findOne({
+        where: { id: bid.uploadId },
+        select: ['title'],
+      });
+
+      const notification = {
+        title: 'New Bid Received!',
+        body: `${company?.companyName || 'A company'} placed a $${bid.amount} bid on "${upload?.title || 'your media'}"`,
+        data: {
+          type: 'new_bid',
+          bidId: bid.id.toString(),
+          uploadId: bid.uploadId.toString(),
+          amount: bid.amount.toString(),
+        },
+      };
+
+      await this.fcmService.sendToDevice(user.fcmToken, notification);
+    } catch (error) {
+      console.error('Failed to send new bid notification:', error);
+    }
+  }
+
+  /**
+   * Send notification to company when their bid status changes
+   */
+  private async sendBidStatusChangeNotification(companyId: number, bid: Bid, newStatus: BidStatus): Promise<void> {
+    try {
+      const company = await this.companyRepository.findOne({
+        where: { id: companyId },
+        select: ['fcmToken', 'companyName'],
+      });
+
+      if (!company || !company.fcmToken) {
+        return; // No FCM token available
+      }
+
+      const upload = await this.uploadRepository.findOne({
+        where: { id: bid.uploadId },
+        select: ['title'],
+      });
+
+      let title: string;
+      let body: string;
+
+      switch (newStatus) {
+        case BidStatus.ACCEPTED:
+          title = 'Bid Accepted! 🎉';
+          body = `Your $${bid.amount} bid on "${upload?.title || 'the media'}" has been accepted!`;
+          break;
+        case BidStatus.DECLINED:
+          title = 'Bid Declined';
+          body = `Your $${bid.amount} bid on "${upload?.title || 'the media'}" was declined.`;
+          break;
+        default:
+          return; // No notification needed for other statuses
+      }
+
+      const notification = {
+        title,
+        body,
+        data: {
+          type: 'bid_status_change',
+          bidId: bid.id.toString(),
+          uploadId: bid.uploadId.toString(),
+          status: newStatus,
+          amount: bid.amount.toString(),
+        },
+      };
+
+      await this.fcmService.sendToDevice(company.fcmToken, notification);
+    } catch (error) {
+      console.error('Failed to send bid status change notification:', error);
+    }
   }
 }
