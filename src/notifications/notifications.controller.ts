@@ -51,11 +51,8 @@ export class NotificationsController {
   }
 
   @Post('test-user')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Send test notification to logged-in user' })
+  @ApiOperation({ summary: 'Send test notification to any user with FCM token (no auth required)' })
   @ApiResponse({ status: 200, description: 'Test notification sent to user' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'User FCM token not found' })
   async sendTestNotificationToUser(@Body() body: { title?: string; body?: string }) {
     try {
@@ -122,6 +119,54 @@ export class NotificationsController {
         success: false,
         fcmInitialized: false,
         message: 'FCM service error',
+        error: error.message,
+      };
+    }
+  }
+
+  @Post('test-user-by-id')
+  @ApiOperation({ summary: 'Send test notification to specific user by ID' })
+  @ApiResponse({ status: 200, description: 'Test notification sent to user' })
+  @ApiResponse({ status: 404, description: 'User not found or no FCM token' })
+  async sendTestNotificationToUserById(@Body() body: { userId: number; title?: string; body?: string }) {
+    try {
+      const user = await this.userRepository.findOne({
+        where: { id: body.userId },
+        select: ['id', 'username', 'fcmToken'],
+      });
+
+      if (!user || !user.fcmToken) {
+        return {
+          success: false,
+          message: `User with ID ${body.userId} not found or has no FCM token`,
+        };
+      }
+
+      const payload: NotificationPayload = {
+        title: body.title || 'Test Notification',
+        body: body.body || `Hello ${user.username}! This is a test notification from NewsAreUs backend`,
+        data: { 
+          type: 'test', 
+          userId: user.id.toString(),
+          timestamp: new Date().toISOString() 
+        },
+      };
+
+      const result = await this.fcmService.sendToDevice(user.fcmToken, payload);
+      
+      return {
+        success: result,
+        message: result ? `Test notification sent to user: ${user.username}` : 'Failed to send notification',
+        user: {
+          id: user.id,
+          username: user.username,
+        },
+        payload,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: 'Error sending test notification to user',
         error: error.message,
       };
     }
