@@ -132,7 +132,7 @@ export class AuthService {
     );
 
     // Build reset URL pointing to the provided frontend
-    const resetUrl = `https://newsareus.com/reset-password?token=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}&type=${encodeURIComponent(type)}`;
+    const resetUrl = `https://newsareus.com/new-password?token=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}&type=${encodeURIComponent(type)}`;
 
     // For now, log the link (placeholder for email provider integration)
     // In production, send email regardless of existence to avoid enumeration
